@@ -1,0 +1,825 @@
+{
+  "info": {
+    "_postman_id": "a938b824-7ef2-48a1-9a74-d4b68f94d930",
+    "name": "Volunteer Skill-Gap Deployment Planner",
+    "description": "Complete Postman collection for all implemented APIs in the Volunteer Skill-Gap Deployment Planner (MCA Major Project MCA-SP-029). Includes automated environment token extraction, realistic payloads, and multi-role testing.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "locationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "requirementId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "runId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "assignmentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "volunteerId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Health Check",
+      "item": [
+        {
+          "name": "Check Server Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": [""]
+            },
+            "description": "Returns API health status."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Register - Coordinator (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.token) {",
+                  "    pm.collectionVariables.set('accessToken', res.data.token);",
+                  "    console.log('Saved coordinator accessToken');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Dr. Priya Sharma\",\n  \"email\": \"coordinator@ngo.org\",\n  \"password\": \"Password@123\",\n  \"role\": \"coordinator\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Registers a new Coordinator user."
+          },
+          "response": []
+        },
+        {
+          "name": "Register - Volunteer User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Rahul Verma\",\n  \"email\": \"rahul.volunteer@gmail.com\",\n  \"password\": \"Password@123\",\n  \"role\": \"volunteer\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Registers a new Volunteer user."
+          },
+          "response": []
+        },
+        {
+          "name": "Login - As Coordinator",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.token) {",
+                  "    pm.collectionVariables.set('accessToken', res.data.token);",
+                  "    console.log('Saved accessToken:', res.data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"coordinator@ngo.org\",\n  \"password\": \"Password@123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Logs in as Coordinator. Automatically updates the collection's {{accessToken}} variable."
+          },
+          "response": []
+        },
+        {
+          "name": "Login - As Volunteer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.token) {",
+                  "    pm.collectionVariables.set('accessToken', res.data.token);",
+                  "    console.log('Switched to volunteer accessToken');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"rahul.volunteer@gmail.com\",\n  \"password\": \"Password@123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Logs in as Volunteer to create or manage personal profile."
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Access Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "refresh"]
+            },
+            "description": "Refreshes expired access token using httpOnly cookie."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Volunteer Profiles",
+      "item": [
+        {
+          "name": "Create Profile (Self)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data._id) {",
+                  "    pm.collectionVariables.set('volunteerId', res.data._id);",
+                  "    console.log('Saved volunteerId:', res.data._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobilityLevel\": \"High\",\n  \"experienceYears\": 3,\n  \"phone\": \"+91-9876543210\",\n  \"homeAddress\": \"Sector 62, Noida, UP\",\n  \"skills\": [\n    {\n      \"skillName\": \"First-Aid\",\n      \"proficiency\": 4\n    },\n    {\n      \"skillName\": \"Crowd Management\",\n      \"proficiency\": 3\n    }\n  ],\n  \"languages\": [\n    {\n      \"language\": \"Hindi\",\n      \"proficiency\": \"FLUENT\"\n    },\n    {\n      \"language\": \"English\",\n      \"proficiency\": \"CONVERSATIONAL\"\n    }\n  ],\n  \"availability\": [\n    {\n      \"date\": \"2026-11-15T00:00:00.000Z\",\n      \"startTime\": \"08:00\",\n      \"endTime\": \"18:00\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/volunteer/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "volunteer", "profile"]
+            },
+            "description": "Creates a comprehensive volunteer profile."
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/volunteer/profile/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "volunteer", "profile", "me"]
+            },
+            "description": "Fetches the authenticated volunteer's own profile."
+          },
+          "response": []
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"experienceYears\": 4,\n  \"mobilityLevel\": \"High\",\n  \"skills\": [\n    {\n      \"skillName\": \"First-Aid\",\n      \"proficiency\": 5\n    },\n    {\n      \"skillName\": \"Triage Care\",\n      \"proficiency\": 4\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/volunteer/profile/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "volunteer", "profile", "me"]
+            },
+            "description": "Updates specific fields in volunteer profile."
+          },
+          "response": []
+        },
+        {
+          "name": "List All Volunteers (Coordinator)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/volunteer/all?skill=First-Aid&mobilityLevel=High",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "volunteer", "all"],
+              "query": [
+                {
+                  "key": "skill",
+                  "value": "First-Aid"
+                },
+                {
+                  "key": "mobilityLevel",
+                  "value": "High"
+                }
+              ]
+            },
+            "description": "Coordinator view listing all registered volunteers with multi-attribute filtering."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Volunteer By ID (Coordinator)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/volunteer/{{volunteerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "volunteer", "{{volunteerId}}"]
+            },
+            "description": "Inspects a specific volunteer profile by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete My Profile",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/volunteer/profile/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "volunteer", "profile", "me"]
+            },
+            "description": "Deletes the authenticated user's volunteer profile."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Service Locations & Requirements",
+      "item": [
+        {
+          "name": "Create Location with Requirements",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data._id) {",
+                  "    pm.collectionVariables.set('locationId', res.data._id);",
+                  "    console.log('Saved locationId:', res.data._id);",
+                  "    if (res.data.requirements && res.data.requirements.length > 0) {",
+                  "        pm.collectionVariables.set('requirementId', res.data.requirements[0]._id);",
+                  "        console.log('Saved requirementId:', res.data.requirements[0]._id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"City Community Health Camp - East Wing\",\n  \"address\": \"Gandhi Memorial Grounds, Gate 2\",\n  \"city\": \"Delhi\",\n  \"date\": \"2026-11-15T00:00:00.000Z\",\n  \"shiftStart\": \"09:00\",\n  \"shiftEnd\": \"17:00\",\n  \"status\": \"UPCOMING\",\n  \"requirements\": [\n    {\n      \"task\": \"Lead Emergency First-Aid\",\n      \"requiredSkill\": \"First-Aid\",\n      \"minProficiency\": 3,\n      \"requiredLanguage\": \"Hindi\",\n      \"minLanguageFluency\": \"FLUENT\",\n      \"isLanguageMandatory\": true,\n      \"minMobilityLevel\": \"Medium\",\n      \"requiredCount\": 2,\n      \"isSafetyCritical\": false\n    },\n    {\n      \"task\": \"Safety & Medical Doctor Lead\",\n      \"requiredSkill\": \"Medical Triage\",\n      \"minProficiency\": 4,\n      \"minMobilityLevel\": \"Low\",\n      \"requiredCount\": 1,\n      \"isSafetyCritical\": true\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/locations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "locations"]
+            },
+            "description": "Creates a new location with embedded task requirements and safety-critical rules. Auto-saves {{locationId}} and {{requirementId}}."
+          },
+          "response": []
+        },
+        {
+          "name": "List All Locations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/locations?status=UPCOMING",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "locations"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "UPCOMING"
+                }
+              ]
+            },
+            "description": "Lists upcoming service locations with optional filtering."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Location By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/locations/{{locationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "locations", "{{locationId}}"]
+            },
+            "description": "Retrieves location details along with full operational requirements list."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Location",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"address\": \"Gandhi Memorial Grounds, Main Auditorium Gate\",\n  \"status\": \"UPCOMING\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/locations/{{locationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "locations", "{{locationId}}"]
+            },
+            "description": "Modifies service location parameters."
+          },
+          "response": []
+        },
+        {
+          "name": "Add Requirement to Location",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"task\": \"Registration & Crowd Desk\",\n  \"requiredSkill\": \"Crowd Management\",\n  \"minProficiency\": 2,\n  \"minMobilityLevel\": \"Low\",\n  \"requiredCount\": 2,\n  \"isSafetyCritical\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/locations/{{locationId}}/requirements",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "locations", "{{locationId}}", "requirements"]
+            },
+            "description": "Appends a new requirement to an existing location."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Location Requirement",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"minProficiency\": 3,\n  \"requiredCount\": 3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/locations/{{locationId}}/requirements/{{requirementId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "locations", "{{locationId}}", "requirements", "{{requirementId}}"]
+            },
+            "description": "Updates a specific requirement subdocument."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Requirement",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/locations/{{locationId}}/requirements/{{requirementId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "locations", "{{locationId}}", "requirements", "{{requirementId}}"]
+            },
+            "description": "Removes a requirement from a location."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Location (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/locations/{{locationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "locations", "{{locationId}}"]
+            },
+            "description": "Deletes a service location."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Deployment Planner & Matching",
+      "item": [
+        {
+          "name": "Preview Constraint Matching (Dry Run)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"locationIds\": [\"{{locationId}}\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/planner/match",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "planner", "match"]
+            },
+            "description": "Executes hard-constraint checking, soft scoring, and skill-gap attribution without persisting records to the database."
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Deployment Plan",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.run && res.data.run._id) {",
+                  "    pm.collectionVariables.set('runId', res.data.run._id);",
+                  "    console.log('Saved runId:', res.data.run._id);",
+                  "    if (res.data.assignments && res.data.assignments.length > 0) {",
+                  "        pm.collectionVariables.set('assignmentId', res.data.assignments[0]._id);",
+                  "        console.log('Saved assignmentId:', res.data.assignments[0]._id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"City Health Camp - November Deployment\",\n  \"targetDate\": \"2026-11-15T00:00:00.000Z\",\n  \"locationIds\": [\"{{locationId}}\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/planner/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "planner", "generate"]
+            },
+            "description": "Runs matching engine, generates DeploymentRun, creates Assignment records (PROPOSED) and SkillGap records. Auto-saves {{runId}} and {{assignmentId}}."
+          },
+          "response": []
+        },
+        {
+          "name": "List All Deployment Runs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/planner/runs",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "planner", "runs"]
+            },
+            "description": "Lists all past and current deployment planning runs."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Deployment Plan By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/planner/runs/{{runId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "planner", "runs", "{{runId}}"]
+            },
+            "description": "Retrieves complete deployment plan including proposed assignments and explainable skill gap reports."
+          },
+          "response": []
+        },
+        {
+          "name": "Coordinator Manual Override",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"runId\": \"{{runId}}\",\n  \"assignmentId\": \"{{assignmentId}}\",\n  \"newVolunteerId\": \"{{volunteerId}}\",\n  \"overrideReason\": \"Volunteer has verified offline first-aid certification despite app record being Level 2.\",\n  \"overriddenConstraint\": \"MIN_PROFICIENCY\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/planner/override",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "planner", "override"]
+            },
+            "description": "Manually reassigns a volunteer with coordinator audit logging. Enforces safety-critical non-overridable checks."
+          },
+          "response": []
+        },
+        {
+          "name": "Confirm Deployment Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/planner/confirm/{{runId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "planner", "confirm", "{{runId}}"]
+            },
+            "description": "Confirms proposed plan, transitioning status to CONFIRMED."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Deployment Sheet & Reports",
+      "item": [
+        {
+          "name": "Get Deployment Sheet (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/sheet/{{runId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "sheet", "{{runId}}"]
+            },
+            "description": "Aggregated multi-location schedule grouped by location with volunteer contact numbers, match scores, and gap summary."
+          },
+          "response": []
+        },
+        {
+          "name": "Export Deployment Sheet (Excel .xlsx)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/export/excel/{{runId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "export", "excel", "{{runId}}"]
+            },
+            "description": "Downloads 2-tab formatted Excel sheet (Deployment Roster + Skill Gap Analysis). In Postman, click 'Send and Download'."
+          },
+          "response": []
+        },
+        {
+          "name": "Export Deployment Sheet (PDF .pdf)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/export/pdf/{{runId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "export", "pdf", "{{runId}}"]
+            },
+            "description": "Streams printable PDF deployment roster with coordinator sign-off block. In Postman, click 'Send and Download'."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
