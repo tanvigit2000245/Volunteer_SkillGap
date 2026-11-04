@@ -17,6 +17,7 @@ This microservice provides mathematically optimal, globally-scoped assignment so
 
 ### Running the Service
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
 ```
 
