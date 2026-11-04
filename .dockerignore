@@ -1,0 +1,14 @@
+**/.git
+**/.github
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache
+**/.env
+**/.env.local
+**/*.log
+**/.DS_Store
+**/coverage
+
