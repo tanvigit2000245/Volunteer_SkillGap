@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Box, Fab, Tooltip } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import { LandingNavbar } from './LandingNavbar';
@@ -10,8 +11,9 @@ import { ContactSection } from './ContactSection';
 import { LandingFooter } from './LandingFooter';
 import { LiveDemoModal } from './LiveDemoModal';
 
-export const VolunPlanLandingPage = ({ onOpenDashboard }) => {
+export const VolunPlanLandingPage = () => {
   const [demoOpen, setDemoOpen] = useState(false);
+  const navigate = useNavigate();
 
   const handleScrollToSection = (id) => {
     const el = document.getElementById(id);
@@ -20,8 +22,8 @@ export const VolunPlanLandingPage = ({ onOpenDashboard }) => {
     }
   };
 
-  const handleStartTrial = () => {
-    onOpenDashboard();
+  const handleGetStarted = () => {
+    navigate('/auth');
   };
 
   const handleWatchDemo = () => {
@@ -32,8 +34,12 @@ export const VolunPlanLandingPage = ({ onOpenDashboard }) => {
     handleScrollToSection('about');
   };
 
-  const handlePlatformClick = (item) => {
-    onOpenDashboard(item);
+  const handlePlatformClick = () => {
+    navigate('/auth');
+  };
+
+  const handleLaunchDashboard = () => {
+    navigate('/dashboard');
   };
 
   return (
@@ -94,13 +100,13 @@ export const VolunPlanLandingPage = ({ onOpenDashboard }) => {
       <Box sx={{ position: 'relative', zIndex: 1 }}>
         {/* 1. Header / Navbar */}
         <LandingNavbar
-          onGetStarted={handleStartTrial}
+          onGetStarted={handleGetStarted}
           onNavigateSection={handleScrollToSection}
         />
 
         {/* 2. Hero Section */}
         <HeroSection
-          onStartTrial={handleStartTrial}
+          onStartTrial={handleGetStarted}
           onWatchDemo={handleWatchDemo}
         />
 
@@ -127,14 +133,14 @@ export const VolunPlanLandingPage = ({ onOpenDashboard }) => {
       <LiveDemoModal
         open={demoOpen}
         onClose={() => setDemoOpen(false)}
-        onLaunchFullApp={onOpenDashboard}
+        onLaunchFullApp={handleLaunchDashboard}
       />
 
       {/* Floating Quick Switcher to Live Dispatch Engine */}
       <Tooltip title="Launch Live Dispatch Engine" placement="left">
         <Fab
           variant="extended"
-          onClick={onOpenDashboard}
+          onClick={handleGetStarted}
           sx={{
             position: 'fixed',
             bottom: 24,
@@ -160,4 +166,3 @@ export const VolunPlanLandingPage = ({ onOpenDashboard }) => {
     </Box>
   );
 };
-
