@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -108,10 +109,10 @@ export const INITIAL_PLANNER_CANDIDATES = [
   },
 ];
 
-export const PlannerDashboard = ({
-  onBackToLanding,
-  onNavigateSection,
-}) => {
+export const PlannerDashboard = () => {
+  const navigate = useNavigate();
+  const onBackToLanding = () => navigate('/');
+
   const [locations, setLocations] = useState(INITIAL_PLANNER_LOCATIONS);
   const [candidates, setCandidates] = useState(INITIAL_PLANNER_CANDIDATES);
   const [activeTab, setActiveTab] = useState('planner');
