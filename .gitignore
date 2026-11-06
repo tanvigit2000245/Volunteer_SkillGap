@@ -35,7 +35,7 @@ pip-delete-this-directory.txt
 # Databases & Runtime Data
 *.sqlite
 *.sqlite3
-data/
+/data/
 db/
 *.log
 

@@ -1,429 +1,161 @@
-import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import {
-  Box,
-  Container,
-  Typography,
-  TextField,
-  Button,
-  Stack,
-  Alert,
-  IconButton,
-  InputAdornment,
-  Divider,
-  Fade,
-  CircularProgress,
-} from '@mui/material';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { useAuth } from '../../context/AuthContext';
-import { VolunPlanLogo } from '../landing/LandingNavbar';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import LoginForm from './LoginForm';
+import RegisterForm from './RegisterForm';
+import ForgotPasswordModal from './ForgotPasswordModal';
+import AuthenticatedView from '../dashboard/AuthenticatedView';
+import Toast from '../common/Toast';
+import { 
+  initializeMockDatabase, 
+  mockLogout 
+} from '../../utils/authStorage';
+import { Heart, ArrowLeft } from 'lucide-react';
 
-export const AuthPage = () => {
-  const [mode, setMode] = useState('login'); // 'login' | 'register'
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
+export default function AuthPage() {
+  const [currentView, setCurrentView] = useState('login'); // 'login' | 'register'
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [toast, setToast] = useState(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
-  const [form, setForm] = useState({
-    fullName: '',
-    email: '',
-    password: '',
-  });
+  // Initialize mock database with sample users on startup
+  // Ensures currentUser starts completely null so login inputs are blank
+  useEffect(() => {
+    initializeMockDatabase();
+  }, []);
 
-  const { login, register, loading } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  // Where should we go after auth?
-  const from = location.state?.from?.pathname || '/dashboard';
-
-  const handleChange = (e) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-    if (error) setError('');
+  const triggerToast = ({ type = 'info', message }) => {
+    setToast({
+      id: Date.now(),
+      type,
+      message
+    });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-
-    // Basic validation
-    if (!form.email.trim() || !form.password) {
-      setError('Email and password are required.');
-      return;
-    }
-    if (mode === 'register' && !form.fullName.trim()) {
-      setError('Full name is required.');
-      return;
-    }
-    if (form.password.length < 8) {
-      setError('Password must be at least 8 characters.');
-      return;
-    }
-
-    let result;
-    if (mode === 'register') {
-      result = await register({
-        fullName: form.fullName.trim(),
-        email: form.email.trim().toLowerCase(),
-        password: form.password,
-      });
-    } else {
-      result = await login({
-        email: form.email.trim().toLowerCase(),
-        password: form.password,
-      });
-    }
-
-    if (result.success) {
-      navigate(from, { replace: true });
-    } else {
-      setError(result.message || 'Something went wrong. Please try again.');
-    }
+  const handleSwitchView = (newView) => {
+    if (newView === currentView) return;
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setCurrentView(newView);
+      setIsTransitioning(false);
+    }, 150);
   };
 
-  const toggleMode = () => {
-    setMode((prev) => (prev === 'login' ? 'register' : 'login'));
-    setError('');
+  const handleLoginSuccess = (userData) => {
+    setCurrentUser(userData);
   };
 
-  const isRegister = mode === 'register';
+  const handleRegisterSuccess = (newUser) => {
+    handleSwitchView('login');
+    triggerToast({
+      type: 'success',
+      message: `Account created for ${newUser.fullName}! Please sign in.`
+    });
+  };
+
+  const handleLogout = () => {
+    mockLogout();
+    setCurrentUser(null);
+    triggerToast({
+      type: 'info',
+      message: 'You have been signed out successfully.'
+    });
+  };
+
+  const handleOpenForgotPassword = (email) => {
+    setForgotEmail(email || '');
+    setIsForgotModalOpen(true);
+  };
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        bgcolor: '#f6f5fa',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Background ambient blobs */}
-      <Box
-        sx={{
-          position: 'fixed',
-          top: '-10%',
-          right: '-5%',
-          width: 600,
-          height: 600,
-          background:
-            'radial-gradient(circle, rgba(139, 92, 246, 0.18) 0%, transparent 65%)',
-          filter: 'blur(60px)',
-          pointerEvents: 'none',
-        }}
-      />
-      <Box
-        sx={{
-          position: 'fixed',
-          bottom: '-10%',
-          left: '-5%',
-          width: 500,
-          height: 500,
-          background:
-            'radial-gradient(circle, rgba(99, 102, 241, 0.14) 0%, transparent 65%)',
-          filter: 'blur(60px)',
-          pointerEvents: 'none',
-        }}
+    <div className="w-full min-h-screen relative overflow-x-hidden select-none selection:bg-[#0284c7] selection:text-white m-0 p-0 flex items-center justify-center bg-[#edf5fe]">
+      {/* 
+        User's Background Image (public/img1.png):
+        Fits the entire screen (100vw x 100vh) and extends behind the login box.
+        Rendered directly at native quality with zero compression or filters.
+        object-left-top pins top-left so the top logo and volunteers are never cut off.
+      */}
+      <img
+        src="/img1.png"
+        alt="Volunteer Skill Gap Background"
+        className="fixed inset-0 w-full h-full object-fill object-left-top pointer-events-none select-none z-0"
       />
 
-      {/* Top Bar: Logo + Back */}
-      <Box sx={{ px: { xs: 3, md: 6 }, pt: { xs: 3, md: 4 }, position: 'relative', zIndex: 1 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Box
-            onClick={() => navigate('/')}
-            sx={{ cursor: 'pointer' }}
-          >
-            <VolunPlanLogo />
-          </Box>
-          <Button
-            startIcon={<ArrowBackIcon />}
-            onClick={() => navigate('/')}
-            sx={{
-              color: '#64748b',
-              textTransform: 'none',
-              fontWeight: 600,
-              fontSize: '0.88rem',
-              '&:hover': { color: '#4338ca' },
-            }}
-          >
-            Back to Home
-          </Button>
-        </Stack>
-      </Box>
+      {/* Floating decorative heart icons matching reference */}
+      <div className="fixed top-[20%] right-[42%] z-10 animate-float-slow hidden xl:block pointer-events-none text-teal-400 opacity-60">
+        <Heart size={18} className="fill-teal-300/30 text-teal-400 stroke-[1.75]" />
+      </div>
+      <div className="fixed bottom-[28%] right-[44%] z-10 animate-float-reverse hidden xl:block pointer-events-none text-teal-400 opacity-55">
+        <Heart size={16} className="fill-teal-300/30 text-teal-400 stroke-[1.75]" />
+      </div>
+      <div className="fixed top-[12%] right-[8%] z-10 animate-float-reverse hidden lg:block pointer-events-none text-sky-400 opacity-50">
+        <Heart size={15} className="fill-sky-300/30 text-sky-400 stroke-[1.75]" />
+      </div>
 
-      {/* Centered Card */}
-      <Container
-        maxWidth="sm"
-        sx={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          py: 4,
-          position: 'relative',
-          zIndex: 1,
-        }}
-      >
-        <Fade in timeout={500}>
-          <Box
-            sx={{
-              width: '100%',
-              bgcolor: '#ffffff',
-              borderRadius: '28px',
-              border: '1px solid rgba(226, 232, 240, 0.85)',
-              boxShadow:
-                '0 25px 60px -12px rgba(99, 102, 241, 0.1), 0 8px 24px rgba(0, 0, 0, 0.03)',
-              p: { xs: 4, sm: 5.5 },
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-          >
-            {/* Decorative top-right accent */}
-            <Box
-              sx={{
-                position: 'absolute',
-                top: -40,
-                right: -40,
-                width: 130,
-                height: 130,
-                borderRadius: '50%',
-                background: 'rgba(238, 242, 255, 0.6)',
-                pointerEvents: 'none',
-              }}
-            />
+      {/* Global Toast Notification */}
+      <Toast toast={toast} onClose={() => setToast(null)} />
 
-            {/* Header */}
-            <Box sx={{ position: 'relative', zIndex: 1, textAlign: 'center', mb: 4 }}>
-              <Typography
-                variant="h4"
-                sx={{
-                  fontWeight: 800,
-                  fontSize: { xs: '1.6rem', sm: '1.9rem' },
-                  color: '#0f172a',
-                  letterSpacing: '-0.02em',
-                  mb: 1,
-                }}
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal
+        isOpen={isForgotModalOpen}
+        onClose={() => setIsForgotModalOpen(false)}
+        initialEmail={forgotEmail}
+        onNotify={triggerToast}
+      />
+
+      {currentUser ? (
+        // Authenticated Dashboard View
+        <main className="relative z-20 w-full min-h-screen overflow-y-auto p-4 sm:p-8 flex items-center justify-center animate-slide-up-fade bg-[#f0f7ff]/95 backdrop-blur-md">
+          <AuthenticatedView user={currentUser} onLogout={handleLogout} />
+        </main>
+      ) : (
+        // Full Viewport Layout with img1.png background spanning behind login box
+        <main className="relative z-10 w-full min-h-screen flex flex-col lg:flex-row items-center justify-between">
+          {/* Left section: transparent area revealing complete promotional artwork from img1.png */}
+          <section className="w-full lg:w-[54%] xl:w-[56%] h-[35vh] sm:h-[45vh] lg:h-full pointer-events-none" />
+
+          {/* Right section: Authentication Card floating over the continuous background */}
+          <section className="w-full lg:w-[46%] xl:w-[44%] h-auto lg:h-full flex items-center justify-center p-4 sm:p-6 lg:p-8 relative z-20 animate-slide-up-fade">
+            <div className="w-full max-w-[430px] bg-white rounded-[32px] card-elevation border border-white/90 p-6 sm:p-8 relative transition-all duration-300">
+              {/* Back to Home link */}
+              <div className="mb-3">
+                <Link
+                  to="/"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#0284c7] transition-colors"
+                >
+                  <ArrowLeft size={14} />
+                  <span>Back to Home</span>
+                </Link>
+              </div>
+
+              {/* Form Animated Transition Wrapper */}
+              <div
+                className={`transition-all duration-150 transform ${
+                  isTransitioning
+                    ? 'opacity-0 scale-[0.98] translate-y-1'
+                    : 'opacity-100 scale-100 translate-y-0'
+                }`}
               >
-                {isRegister ? 'Join VolunPlan' : 'Welcome Back'}
-              </Typography>
-              <Typography
-                variant="body1"
-                sx={{ color: '#64748b', fontSize: '0.95rem' }}
-              >
-                {isRegister
-                  ? 'Create your account and start volunteering today.'
-                  : 'Sign in to access the Deployment Planner.'}
-              </Typography>
-            </Box>
-
-            {/* Error Banner */}
-            {error && (
-              <Alert
-                severity="error"
-                sx={{ mb: 3, borderRadius: 3 }}
-                onClose={() => setError('')}
-              >
-                {error}
-              </Alert>
-            )}
-
-            {/* Form */}
-            <Box component="form" onSubmit={handleSubmit}>
-              <Stack spacing={2.8}>
-                {/* Full Name (register only) */}
-                {isRegister && (
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontSize: '0.82rem',
-                        fontWeight: 600,
-                        color: '#334155',
-                        mb: 0.8,
-                      }}
-                    >
-                      Full Name
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      name="fullName"
-                      placeholder="Jane Doe"
-                      value={form.fullName}
-                      onChange={handleChange}
-                      autoComplete="name"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          bgcolor: '#f8fafc',
-                          borderRadius: '14px',
-                          fontSize: '0.92rem',
-                          '& fieldset': { borderColor: '#e2e8f0' },
-                          '&:hover fieldset': { borderColor: '#cbd5e1' },
-                          '&.Mui-focused fieldset': { borderColor: '#6366f1' },
-                        },
-                      }}
-                    />
-                  </Box>
+                {currentView === 'login' ? (
+                  <LoginForm
+                    onSwitchToRegister={() => handleSwitchView('register')}
+                    onLoginSuccess={handleLoginSuccess}
+                    onOpenForgotPassword={handleOpenForgotPassword}
+                    onNotify={triggerToast}
+                  />
+                ) : (
+                  <RegisterForm
+                    onSwitchToLogin={() => handleSwitchView('login')}
+                    onRegisterSuccess={handleRegisterSuccess}
+                    onNotify={triggerToast}
+                  />
                 )}
-
-                {/* Email */}
-                <Box>
-                  <Typography
-                    sx={{
-                      fontSize: '0.82rem',
-                      fontWeight: 600,
-                      color: '#334155',
-                      mb: 0.8,
-                    }}
-                  >
-                    Email Address
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    name="email"
-                    type="email"
-                    placeholder="you@organization.org"
-                    value={form.email}
-                    onChange={handleChange}
-                    autoComplete="email"
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        bgcolor: '#f8fafc',
-                        borderRadius: '14px',
-                        fontSize: '0.92rem',
-                        '& fieldset': { borderColor: '#e2e8f0' },
-                        '&:hover fieldset': { borderColor: '#cbd5e1' },
-                        '&.Mui-focused fieldset': { borderColor: '#6366f1' },
-                      },
-                    }}
-                  />
-                </Box>
-
-                {/* Password */}
-                <Box>
-                  <Typography
-                    sx={{
-                      fontSize: '0.82rem',
-                      fontWeight: 600,
-                      color: '#334155',
-                      mb: 0.8,
-                    }}
-                  >
-                    Password
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder={isRegister ? 'Min 8 characters' : '••••••••'}
-                    value={form.password}
-                    onChange={handleChange}
-                    autoComplete={isRegister ? 'new-password' : 'current-password'}
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton
-                            edge="end"
-                            onClick={() => setShowPassword((p) => !p)}
-                            sx={{ color: '#94a3b8' }}
-                          >
-                            {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                    }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        bgcolor: '#f8fafc',
-                        borderRadius: '14px',
-                        fontSize: '0.92rem',
-                        '& fieldset': { borderColor: '#e2e8f0' },
-                        '&:hover fieldset': { borderColor: '#cbd5e1' },
-                        '&.Mui-focused fieldset': { borderColor: '#6366f1' },
-                      },
-                    }}
-                  />
-                </Box>
-
-                {/* Submit */}
-                <Button
-                  type="submit"
-                  fullWidth
-                  variant="contained"
-                  disabled={loading}
-                  sx={{
-                    background: 'linear-gradient(135deg, #6366f1 0%, #7c3aed 100%)',
-                    color: '#ffffff',
-                    borderRadius: '14px',
-                    py: 1.5,
-                    fontSize: '1rem',
-                    fontWeight: 700,
-                    textTransform: 'none',
-                    boxShadow: '0 8px 22px -4px rgba(99, 102, 241, 0.45)',
-                    transition: 'all 0.25s ease',
-                    '&:hover': {
-                      background: 'linear-gradient(135deg, #4f46e5 0%, #6d28d9 100%)',
-                      boxShadow: '0 12px 28px -4px rgba(99, 102, 241, 0.55)',
-                      transform: 'translateY(-1px)',
-                    },
-                    '&:disabled': {
-                      background: '#cbd5e1',
-                      color: '#ffffff',
-                      boxShadow: 'none',
-                    },
-                  }}
-                >
-                  {loading ? (
-                    <CircularProgress size={22} sx={{ color: '#ffffff' }} />
-                  ) : isRegister ? (
-                    'Create Account & Start Volunteering'
-                  ) : (
-                    'Sign In to Dashboard'
-                  )}
-                </Button>
-              </Stack>
-            </Box>
-
-            {/* Divider + Toggle */}
-            <Divider sx={{ my: 3.5, borderColor: '#f1f5f9' }} />
-
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography sx={{ fontSize: '0.9rem', color: '#64748b' }}>
-                {isRegister ? 'Already have an account?' : "Don't have an account?"}
-                <Box
-                  component="span"
-                  onClick={toggleMode}
-                  sx={{
-                    ml: 0.8,
-                    fontWeight: 700,
-                    color: '#6366f1',
-                    cursor: 'pointer',
-                    transition: 'color 0.2s',
-                    '&:hover': { color: '#4338ca' },
-                  }}
-                >
-                  {isRegister ? 'Sign In' : 'Register Now'}
-                </Box>
-              </Typography>
-            </Box>
-          </Box>
-        </Fade>
-      </Container>
-
-      {/* Bottom copyright */}
-      <Box
-        sx={{
-          textAlign: 'center',
-          py: 3,
-          position: 'relative',
-          zIndex: 1,
-        }}
-      >
-        <Typography sx={{ fontSize: '0.78rem', color: '#94a3b8' }}>
-          © 2026 VolunPlan. Secure volunteer deployment platform.
-        </Typography>
-      </Box>
-    </Box>
+              </div>
+            </div>
+          </section>
+        </main>
+      )}
+    </div>
   );
-};
-
+}
