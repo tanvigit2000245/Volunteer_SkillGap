@@ -31,10 +31,10 @@ export const registerUser = async (req, res) => {
   try {
     const { fullName, email, role } = req.body;
 
-    console.log("📩 Registration request received");
-    console.log("👤 Name:", fullName);
-    console.log("📧 Email:", email);
-    console.log("🔑 Role:", role);
+    // console.log("📩 Registration request received");
+    // console.log("👤 Name:", fullName);
+    // console.log("📧 Email:", email);
+    // console.log("🔑 Role:", role);
 
     if (!email || !req.body.password || !fullName) {
       log.warning("Registration failed: Required fields are missing");
