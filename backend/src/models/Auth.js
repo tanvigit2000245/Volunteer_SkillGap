@@ -11,16 +11,21 @@ const authSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
+
     fullName: {
       type: String,
       required: true,
       trim: true,
     },
+
     password: {
       type: String,
       required: true,
       minlength: 8,
+      maxlength: 128,
+      select: false,
     },
+
     role: {
       type: String,
       enum: ["admin", "volunteer", "coordinator"],
@@ -33,6 +38,7 @@ const authSchema = new mongoose.Schema(
 // Hash password before saving
 authSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
+
   this.password = await bcrypt.hash(this.password, 10);
 });
 
