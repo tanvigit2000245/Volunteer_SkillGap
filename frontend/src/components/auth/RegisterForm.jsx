@@ -6,9 +6,9 @@ import {
   validateEmail, 
   validatePassword, 
   validateConfirmPassword, 
-  calculatePasswordStrength,
-  mockRegister 
+  calculatePasswordStrength
 } from '../../utils/authStorage';
+import { registerUser } from '../../api/authApi';
 
 export default function RegisterForm({ onSwitchToLogin, onRegisterSuccess, onNotify }) {
   // MUST be completely empty by default
@@ -76,12 +76,13 @@ export default function RegisterForm({ onSwitchToLogin, onRegisterSuccess, onNot
     setIsSubmitting(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 450));
-      const newUser = await mockRegister({
-        fullName: formData.fullName,
-        email: formData.email,
-        password: formData.password
+      const response = await registerUser({
+        fullName: formData.fullName.trim(),
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
       });
+
+      const newUser = response.user || response.data || { fullName: formData.fullName, email: formData.email };
 
       if (onNotify) {
         onNotify({
@@ -94,13 +95,19 @@ export default function RegisterForm({ onSwitchToLogin, onRegisterSuccess, onNot
         onRegisterSuccess(newUser);
       }
     } catch (err) {
+      const errorMsg =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        'Registration failed.';
+
       if (onNotify) {
         onNotify({
           type: 'error',
-          message: err.message || 'Registration failed.'
+          message: errorMsg
         });
       }
-      setErrors(prev => ({ ...prev, form: err.message }));
+      setErrors(prev => ({ ...prev, form: errorMsg }));
     } finally {
       setIsSubmitting(false);
     }

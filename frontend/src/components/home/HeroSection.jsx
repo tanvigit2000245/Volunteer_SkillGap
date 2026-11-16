@@ -65,7 +65,7 @@ export default function HeroSection() {
                 <ArrowRight size={18} />
               </button>
               <button
-                onClick={() => navigate('/login')}
+                onClick={() => navigate('/auth')}
                 className="w-full sm:w-auto px-8 py-4 rounded-2xl border-2 border-[#0284c7] text-[#0284c7] hover:bg-[#0284c7] hover:text-white font-bold text-sm transition-all duration-200 active:scale-[0.97]"
               >
                 Become a Volunteer

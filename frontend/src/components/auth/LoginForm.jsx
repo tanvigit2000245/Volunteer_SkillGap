@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Mail, Lock, ArrowRight, Check, AlertCircle } from 'lucide-react';
 import InputField from '../common/InputField';
 import { validateEmail, validatePassword, mockLogin } from '../../utils/authStorage';
+import {loginUser} from '../../api/authApi';
 
 export default function LoginForm({ onSwitchToRegister, onLoginSuccess, onOpenForgotPassword, onNotify }) {
   // MUST be completely empty by default on initial load
@@ -39,61 +40,91 @@ export default function LoginForm({ onSwitchToRegister, onLoginSuccess, onOpenFo
     return Object.keys(nextErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+ 
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    if (!validate()) {
-      if (onNotify) {
-        onNotify({
-          type: 'error',
-          message: 'Please enter your email and password.'
-        });
-      }
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      // Frontend-only simulation delay (no backend required)
-      await new Promise(resolve => setTimeout(resolve, 400));
-      const cleanEmail = formData.email.trim().toLowerCase();
-      const session = await mockLogin({
-        email: cleanEmail,
-        password: formData.password,
-        rememberMe: formData.rememberMe
+  if (!validate()) {
+    if (onNotify) {
+      onNotify({
+        type: "error",
+        message: "Please enter your email and password.",
       });
-
-      if (onNotify) {
-        onNotify({
-          type: 'success',
-          message: `Welcome back, ${session.fullName}!`
-        });
-      }
-
-      if (onLoginSuccess) {
-        onLoginSuccess(session);
-      }
-    } catch (err) {
-      // Displays "Wrong email ID or password" when credentials are wrong
-      const errorMsg = err.message || 'Wrong email ID or password.';
-      
-      if (onNotify) {
-        onNotify({
-          type: 'error',
-          message: errorMsg
-        });
-      }
-
-      setErrors(prev => ({
-        ...prev,
-        form: errorMsg,
-        ...(err.field ? { [err.field]: err.fieldMessage || errorMsg } : {})
-      }));
-    } finally {
-      setIsSubmitting(false);
     }
-  };
+    return;
+  }
+
+  setIsSubmitting(true);
+
+  try {
+    const cleanEmail = formData.email.trim().toLowerCase();
+
+    // Call your actual backend login API
+    const response = await loginUser({
+      email: cleanEmail,
+      password: formData.password,
+    });
+
+    // Verify that backend returned an access token
+    if (!response.accessToken) {
+      throw new Error("Access token not received from server.");
+    }
+
+    // Save token according to Remember Me
+    const storage = formData.rememberMe
+      ? localStorage
+      : sessionStorage;
+
+    storage.setItem("accessToken", response.accessToken);
+
+    // Save user information if backend returns it
+    if (response.user) {
+      storage.setItem("user", JSON.stringify(response.user));
+    }
+
+    // Create session object for your dashboard
+    const session = {
+      ...response.user,
+      email: response.user?.email || cleanEmail,
+      fullName: response.user?.fullName || cleanEmail,
+      accessToken: response.accessToken,
+    };
+
+    if (onNotify) {
+      onNotify({
+        type: "success",
+        message: `Welcome back, ${session.fullName}!`,
+      });
+    }
+
+    if (onLoginSuccess) {
+      onLoginSuccess(session);
+    }
+
+  } catch (err) {
+    const errorMsg =
+      err.response?.data?.message ||
+      err.response?.data?.error ||
+      err.message ||
+      "Wrong email ID or password.";
+
+    if (onNotify) {
+      onNotify({
+        type: "error",
+        message: errorMsg,
+      });
+    }
+
+    setErrors((prev) => ({
+      ...prev,
+      form: errorMsg,
+    }));
+
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
 
   return (
     <div className="w-full relative">

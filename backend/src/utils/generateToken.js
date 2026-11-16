@@ -2,6 +2,10 @@
 import jwt from "jsonwebtoken";
 
 export const generateAccessToken = (user) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is missing");
+  }
+
   return jwt.sign(
     {
       id: user._id.toString(),
@@ -14,6 +18,10 @@ export const generateAccessToken = (user) => {
 };
 
 export const generateRefreshToken = (user) => {
+  if (!process.env.JWT_REFRESH_SECRET) {
+    throw new Error("JWT_REFRESH_SECRET is missing");
+  }
+
   return jwt.sign(
     {
       id: user._id.toString(),
