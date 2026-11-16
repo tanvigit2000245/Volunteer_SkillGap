@@ -1,17 +1,23 @@
+
 import React, { useEffect } from 'react';
 import { CheckCircle2, AlertTriangle, XCircle, Info, X } from 'lucide-react';
 
 export default function Toast({ toast, onClose }) {
-  if (!toast) return null;
-
-  const { type = 'info', message, id } = toast;
+  // Always call hooks before conditional returns
+  const { type = 'info', message, id } = toast || {};
 
   useEffect(() => {
+    if (!toast) return;
+
     const timer = setTimeout(() => {
       onClose();
     }, 4500);
+
     return () => clearTimeout(timer);
-  }, [id, onClose]);
+  }, [id, onClose, toast]);
+
+  // Conditional return after hooks
+  if (!toast) return null;
 
   const icons = {
     success: <CheckCircle2 className="text-emerald-400 shrink-0" size={20} />,
@@ -44,9 +50,11 @@ export default function Toast({ toast, onClose }) {
       >
         <div className="flex items-start gap-3">
           <div className="pt-0.5">{icons[type] || icons.info}</div>
+
           <div className="flex-1 text-sm text-slate-100 font-medium leading-relaxed">
             {message}
           </div>
+
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
@@ -76,4 +84,3 @@ export default function Toast({ toast, onClose }) {
     </aside>
   );
 }
-
