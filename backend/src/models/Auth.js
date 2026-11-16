@@ -44,6 +44,9 @@ authSchema.pre("save", async function () {
 
 // Compare password during login
 authSchema.methods.comparePassword = async function (enteredPassword) {
+  if (!enteredPassword || !this.password) {
+    return false;
+  }
   return bcrypt.compare(enteredPassword, this.password);
 };
 

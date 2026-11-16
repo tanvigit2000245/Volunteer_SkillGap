@@ -14,6 +14,7 @@ api.interceptors.request.use(
   (config) => {
     const token =
       localStorage.getItem("accessToken") ||
+      localStorage.getItem("volunplan_token") ||
       sessionStorage.getItem("accessToken");
 
     if (token) {

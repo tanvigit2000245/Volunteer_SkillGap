@@ -77,6 +77,12 @@ export const registerUser = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "User created successfully",
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+      },
       data: {
         id: user._id,
         fullName: user.fullName,
@@ -121,7 +127,7 @@ export const loginUser = async (req, res) => {
 
     console.log("🔍 Searching user in database...");
 
-    const user = await findUserByEmail(email);
+    const user = await findUserByEmail(email, true);
 
     if (!user) {
       log.warning(`Login failed: User not found (${email})`);
@@ -179,6 +185,12 @@ export const loginUser = async (req, res) => {
       success: true,
       message: "Login successful",
       accessToken,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+      },
       data: {
         id: user._id,
         fullName: user.fullName,
@@ -262,6 +274,18 @@ export const refreshAccessToken = async (req, res) => {
       success: true,
       message: "Access token refreshed",
       accessToken: newAccessToken,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+      },
+      data: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+      },
     });
 
   } catch (error) {
@@ -277,4 +301,18 @@ export const refreshAccessToken = async (req, res) => {
       message: "Refresh token expired or invalid",
     });
   }
+};
+
+// POST /api/auth/logout
+export const logoutUser = async (req, res) => {
+  res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    path: "/api/auth/refresh",
+  });
+  return res.status(200).json({
+    success: true,
+    message: "Logged out successfully",
+  });
 };

@@ -12,10 +12,16 @@ export const createUser = async (userData) => {
   return user;
 };
 
-export const findUserByEmail = async (email) => {
-  return Auth.findOne({
+export const findUserByEmail = async (email, includePassword = false) => {
+  const query = Auth.findOne({
     email: email.trim().toLowerCase(),
   });
+
+  if (includePassword) {
+    query.select("+password");
+  }
+
+  return query;
 };
 
 export const findUserById = async (id) => {
