@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, ChevronDown, Heart } from 'lucide-react';
+import { Menu, X, ChevronDown, Heart, LogOut, LayoutDashboard, User } from 'lucide-react';
+import { AuthContext } from '../../context/AuthContext';
 
 export default function Navbar() {
   const navigate = useNavigate();
+  const { user, logout } = useContext(AuthContext);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
@@ -119,13 +121,35 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* Login Button */}
-            <button
-              onClick={() => navigate('/login')}
-              className="ml-3 px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#145ac7] via-[#0d84d6] to-[#00b4d8] hover:from-[#114eb0] hover:to-[#00a2c3] text-white text-sm font-bold shadow-md shadow-sky-600/20 hover:shadow-sky-600/35 transition-all duration-200 active:scale-[0.97]"
-            >
-              Login
-            </button>
+            {/* Auth Action Buttons */}
+            {user ? (
+              <div className="flex items-center gap-2 ml-3">
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-[#145ac7] via-[#0d84d6] to-[#00b4d8] hover:from-[#114eb0] hover:to-[#00a2c3] text-white text-xs font-bold shadow-md shadow-sky-600/20 hover:shadow-sky-600/35 transition-all duration-200 active:scale-[0.97] flex items-center gap-2"
+                >
+                  <LayoutDashboard size={15} />
+                  <span>Dashboard</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/25 uppercase font-extrabold tracking-wide">
+                    {user.role}
+                  </span>
+                </button>
+                <button
+                  onClick={() => { logout(); navigate('/'); }}
+                  title="Sign Out"
+                  className="p-2.5 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 transition-all active:scale-95"
+                >
+                  <LogOut size={16} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => navigate('/auth')}
+                className="ml-3 px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#145ac7] via-[#0d84d6] to-[#00b4d8] hover:from-[#114eb0] hover:to-[#00a2c3] text-white text-sm font-bold shadow-md shadow-sky-600/20 hover:shadow-sky-600/35 transition-all duration-200 active:scale-[0.97]"
+              >
+                Get Started
+              </button>
+            )}
           </div>
 
           {/* Mobile Hamburger */}
@@ -161,12 +185,31 @@ export default function Navbar() {
               </button>
             ))}
             <div className="pt-2">
-              <button
-                onClick={() => { setIsMobileOpen(false); navigate('/login'); }}
-                className="w-full px-6 py-3 rounded-2xl bg-gradient-to-r from-[#145ac7] via-[#0d84d6] to-[#00b4d8] text-white text-sm font-bold shadow-md transition-all"
-              >
-                Login
-              </button>
+              {user ? (
+                <div className="space-y-2">
+                  <button
+                    onClick={() => { setIsMobileOpen(false); navigate('/dashboard'); }}
+                    className="w-full px-6 py-3 rounded-2xl bg-gradient-to-r from-[#145ac7] via-[#0d84d6] to-[#00b4d8] text-white text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2"
+                  >
+                    <LayoutDashboard size={16} />
+                    <span>Go to Dashboard ({user.role})</span>
+                  </button>
+                  <button
+                    onClick={() => { setIsMobileOpen(false); logout(); navigate('/'); }}
+                    className="w-full px-6 py-2.5 rounded-2xl border border-rose-200 text-rose-600 bg-rose-50 text-sm font-bold transition-all flex items-center justify-center gap-2"
+                  >
+                    <LogOut size={16} />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setIsMobileOpen(false); navigate('/auth'); }}
+                  className="w-full px-6 py-3 rounded-2xl bg-gradient-to-r from-[#145ac7] via-[#0d84d6] to-[#00b4d8] text-white text-sm font-bold shadow-md transition-all"
+                >
+                  Get Started / Login
+                </button>
+              )}
             </div>
           </div>
         </div>

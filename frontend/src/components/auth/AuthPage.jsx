@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterForm';
@@ -17,6 +17,13 @@ export default function AuthPage() {
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   const { user, login, register, logout, setAuthSession } = useContext(AuthContext);
+
+  // If already logged in, automatically go to dashboard
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, navigate]);
 
   const triggerToast = ({ type = 'info', message }) => {
     setToast({ id: Date.now(), type, message });
