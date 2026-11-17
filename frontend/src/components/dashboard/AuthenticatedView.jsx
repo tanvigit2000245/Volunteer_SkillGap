@@ -1,172 +1,518 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import {
-  Shield,
-  LogOut,
-  Mail,
-  Sparkles,
-  Award,
-  Calendar,
-  CheckCircle2,
-  Clock,
-  Compass,
-  GraduationCap,
-  Heart,
-  Home
-} from 'lucide-react';
-import { useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
+import PlannerTab from './planner/PlannerTab.jsx';
+import LocationsTab from './locations/LocationsTab.jsx';
+import VolunteersTab from './volunteers/VolunteersTab.jsx';
+import ReportsTab from './reports/ReportsTab.jsx';
+import AdminTab from './admin/AdminTab.jsx';
+import VolunteerProfileTab from './volunteers/VolunteerProfileTab.jsx';
+import DashboardLayout from './layout/DashboardLayout.jsx';
+import MetricsCards from './overview/MetricsCards.jsx';
+import OptimizationResults from './planner/OptimizationResults.jsx';
+import CreateLocationModal from './locations/CreateLocationModal.jsx';
 import { AuthContext } from '../../context/AuthContext';
+import { getAllLocations, createLocation } from '../../api/locationApi';
+import { getAllVolunteers, getMyProfile, updateMyProfile, createVolunteerProfile } from '../../api/volunteerApi';
+import { previewMatching, generateDeploymentPlan, getDeploymentRuns } from '../../api/plannerApi';
+import { exportExcel, exportPDF } from '../../api/reportApi';
+import { getAllUsers, updateUserRole } from '../../api/authApi';
 
+
+
+
+// ─── Helper: build tag pills from location DB data ────────────────────────────
+function buildTags(loc) {
+  const tags = [];
+  const hasCritical = loc.requirements?.some((r) => r.isSafetyCritical);
+  const tier = hasCritical ? 3 : loc.requirements?.length > 1 ? 2 : 1;
+  tags.push({
+    label: `Level: Tier ${tier}`,
+    color: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  });
+  const langReq = loc.requirements?.find((r) => r.requiredLanguage)?.requiredLanguage;
+  if (langReq) {
+    tags.push({ label: `${langReq} Required`, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' });
+  } else {
+    tags.push({ label: 'No Lang. Req.', color: 'bg-slate-50 text-slate-600 border-slate-200' });
+  }
+  if (loc.requirements?.some((r) => r.minMobilityLevel === 'High' || r.minMobilityLevel === 'FULL')) {
+    tags.push({ label: 'High Mobility', color: 'bg-amber-50 text-amber-700 border-amber-200' });
+  }
+  return tags;
+}
+
+// ─── Helper: map raw DB location → UI location object ────────────────────────
+function mapDbLocation(l, coveragePct = 0, hasAlert = false, alertMessage = '') {
+  const initials = (l.name || '')
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 3)
+    .toUpperCase();
+  return {
+    id: l._id || l.id,
+    siteCode: l.siteCode || `${initials}-${String(l._id || '').slice(-3).toUpperCase()}`,
+    name: l.name,
+    city: l.city || l.address || '',
+    coverage: coveragePct,
+    hasAlert,
+    alertMessage,
+    tags: buildTags(l),
+    requirements: l.requirements || [],
+    status: l.status || 'UPCOMING',
+    rawData: l,
+  };
+}
+
+// ─── Helper: map raw DB volunteer → UI candidate object ───────────────────────
+function mapDbVolunteer(vol, idx) {
+  const volName = vol.user?.fullName || `Volunteer ${idx + 1}`;
+  const volSkills = (vol.skills || []).map((s) =>
+    (s.skill || s.skillName || '').toUpperCase()
+  ).filter(Boolean);
+  const volLangs = (vol.languages || []).map((l) => l.language || '').filter(Boolean);
+  const exp = vol.experienceYears || 0;
+  const allTags = [...volSkills, ...volLangs].slice(0, 4);
+  const score = Math.min(99, Math.max(60, 70 + (vol.skills?.length || 0) * 5 + exp));
+  const scoreColor =
+    score >= 95 ? 'bg-[#10b981] text-white' :
+    score >= 88 ? 'bg-[#06b6d4] text-white' :
+    score >= 80 ? 'bg-[#3b82f6] text-white' :
+    'bg-[#f59e0b] text-white';
+  return {
+    id: vol._id,
+    name: volName,
+    title: `${volSkills[0] || 'Trained Volunteer'} • ${exp}y Exp`,
+    matchScore: score,
+    scoreColor,
+    initials: volName.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase(),
+    skills: allTags.length > 0 ? allTags : ['VOLUNTEER'],
+    status: 'available',
+    assignedTo: null,
+    type: idx < Math.ceil((vol.skills?.length || 1) / 2) ? 'eligible' : 'suitable',
+    rawData: vol,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 export default function AuthenticatedView() {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
-  if (!user) return null;
-  const roleConfigs = {
-    admin: {
-      badgeColor: 'bg-purple-100 text-purple-800 border-purple-200',
-      tagline: 'System Administrator',
-      description: 'Full administrative rights to manage skill taxonomies, assign coordinators, and view network analytics.',
-      avatarBg: 'bg-purple-600',
-      icon: Shield
-    },
-    coordinator: {
-      badgeColor: 'bg-sky-100 text-sky-800 border-sky-200',
-      tagline: 'Program Coordinator',
-      description: 'Coordinates community projects, verifies partner needs, and schedules skill workshops.',
-      avatarBg: 'bg-[#0d84d6]',
-      icon: Compass
-    },
-    volunteer: {
-      badgeColor: 'bg-teal-100 text-teal-800 border-teal-200',
-      tagline: 'Community Volunteer',
-      description: 'Offers skills to grassroots community projects and logs volunteer contribution hours.',
-      avatarBg: 'bg-[#00a884]',
-      icon: Award
+
+  // ── Tab state ──────────────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState('planner');
+
+  // ── Filter bar ────────────────────────────────────────────────────────────
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }));
+  const [selectedRegion, setSelectedRegion] = useState('All Regions');
+  const [selectedShift, setSelectedShift] = useState('All Shifts');
+  const [candidateFilter, setCandidateFilter] = useState('eligible');
+
+  // ── Metrics ───────────────────────────────────────────────────────────────
+  const [metrics, setMetrics] = useState({
+    totalVolunteers: 0,
+    staffingCoverage: 0,
+    activeSkillGaps: 0,
+    pendingReviews: 0,
+  });
+
+  // ── Data ──────────────────────────────────────────────────────────────────
+  const [locations, setLocations] = useState([]);
+  const [candidates, setCandidates] = useState([]);
+  const [usersList, setUsersList] = useState([]);
+  const [deploymentRuns, setDeploymentRuns] = useState([]);
+  const [selectedReportRunId, setSelectedReportRunId] = useState('');
+  const [exportingFormat, setExportingFormat] = useState('');
+  const [loadingReportRuns, setLoadingReportRuns] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [loadingLocations, setLoadingLocations] = useState(true);
+  const [loadingCandidates, setLoadingCandidates] = useState(true);
+
+  // ── Volunteer profile ─────────────────────────────────────────────────────
+  const [volunteerProfile, setVolunteerProfile] = useState({
+    skills: [],
+    languages: [],
+    mobilityLevel: 'Medium',
+    experienceYears: 0,
+  });
+  const [newSkillInput, setNewSkillInput] = useState({ skill: '', proficiency: 3 });
+  const [savingSkills, setSavingSkills] = useState(false);
+
+  // ── Optimization engine ───────────────────────────────────────────────────
+  const [optimizationResult, setOptimizationResult] = useState(null);
+  const [showRecommendations, setShowRecommendations] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // ── UI helpers ─────────────────────────────────────────────────────────────
+  const [toast, setToast] = useState(null);
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [newLocationForm, setNewLocationForm] = useState({
+    name: '', address: '', city: '', requiredSkills: 'Medical Advanced', requiredVolunteers: 4, tier: 'Tier 2',
+  });
+
+  // ── Role helpers ──────────────────────────────────────────────────────────
+  const isAdmin = user?.role === 'admin';
+  const isCoordinator = user?.role === 'coordinator' || isAdmin;
+  const isVolunteer = user?.role === 'volunteer';
+
+  // ── Main data-fetch effect ─────────────────────────────────────────────────
+  useEffect(() => {
+    let isMounted = true;
+
+    const load = async () => {
+      // 1 ── Locations
+      try {
+        setLoadingLocations(true);
+        const locRes = await getAllLocations();
+        const dbLocations = locRes?.data || [];
+        if (isMounted) {
+          const mapped = dbLocations.map((l) => mapDbLocation(l, 0, false, ''));
+          setLocations(mapped);
+        }
+      } catch (err) {
+        console.error('Failed to load locations:', err);
+      } finally {
+        if (isMounted) setLoadingLocations(false);
+      }
+
+      // 2 ── Volunteers
+      if (isAdmin || isCoordinator) {
+        try {
+          setLoadingCandidates(true);
+          const volRes = await getAllVolunteers();
+          const dbVols = volRes?.data || [];
+          if (isMounted && dbVols.length > 0) {
+            const mapped = dbVols.map((v, i) => mapDbVolunteer(v, i));
+            setCandidates(mapped);
+            setMetrics((prev) => ({ ...prev, totalVolunteers: dbVols.length, pendingReviews: dbVols.length }));
+          }
+        } catch (err) {
+          console.error('Failed to load volunteers:', err);
+        } finally {
+          if (isMounted) setLoadingCandidates(false);
+        }
+      } else {
+        setLoadingCandidates(false);
+      }
+
+      // 3 ── Admin: users + deployment runs
+      if (isAdmin) {
+        try {
+          setLoadingUsers(true);
+          const usersRes = await getAllUsers();
+          if (isMounted && usersRes?.data) setUsersList(usersRes.data);
+        } catch (err) {
+          console.error('Failed to load users:', err);
+        } finally {
+          if (isMounted) setLoadingUsers(false);
+        }
+
+        try {
+          if (isMounted) setLoadingReportRuns(true);
+          const runsRes = await getDeploymentRuns();
+          if (isMounted && runsRes?.data) {
+            setDeploymentRuns(runsRes.data);
+            setSelectedReportRunId((current) => current || (runsRes.data[0]?._id || runsRes.data[0]?.id || ''));
+          }
+        } catch (err) {
+          console.error('Failed to load deployment runs:', err);
+        } finally {
+          if (isMounted) setLoadingReportRuns(false);
+        }
+      }
+
+      // 4 ── Volunteer: own profile
+      if (isVolunteer) {
+        try {
+          const profRes = await getMyProfile();
+          if (isMounted && profRes?.data) {
+            setVolunteerProfile({
+              skills: profRes.data.skills || [],
+              languages: profRes.data.languages || [],
+              mobilityLevel: profRes.data.mobilityLevel || 'Medium',
+              experienceYears: profRes.data.experienceYears || 0,
+            });
+          }
+        } catch (_) { /* Ignore optional profile fetch failures. */ }
+      }
+    };
+
+    load();
+  
+  return () => { isMounted = false; };
+  }, [isAdmin, isCoordinator, isVolunteer]);
+
+  // ── Auto-run optimization once locations are loaded ───────────────────────
+  useEffect(() => {
+    if (locations.length === 0 || !isCoordinator) return;
+    const realIds = locations.map((l) => l.id).filter((id) => id && String(id).length === 24);
+    if (realIds.length === 0) return;
+
+    previewMatching(realIds)
+      .then((res) => {
+        const data = res?.data;
+        if (!data) return;
+        // Update coverage per location
+        if (data.proposedAssignments) {
+          setLocations((prev) =>
+            prev.map((loc) => {
+              const assigned = data.proposedAssignments.filter((a) => a.locationId === loc.id).length;
+              const required = loc.requirements.reduce((s, r) => s + (r.requiredCount || 1), 0) || 1;
+              const pct = Math.min(100, Math.round((assigned / required) * 100));
+              const gaps = data.detectedSkillGaps?.filter((g) => g.locationId === loc.id) || [];
+              const hasAlert = gaps.length > 0;
+              const alertMessage = gaps.map((g) => `Critical shortage: ${g.requiredSkill}. Short ${g.shortage} volunteer(s).`).join(' ');
+              return { ...loc, coverage: pct, hasAlert, alertMessage };
+            })
+          );
+          // Update candidate assignment status
+          setCandidates((prev) =>
+            prev.map((c) => {
+              const a = data.proposedAssignments.find((x) => x.volunteerId === c.id);
+              if (a) return { ...c, status: 'assigned', assignedTo: a.locationId, matchScore: Math.round((a.matchScore || 0.8) * 100) };
+              return c;
+            })
+          );
+        }
+        if (data.stats) {
+          setMetrics((prev) => ({
+            ...prev,
+            staffingCoverage: Math.round(data.stats.globalCoverageRate || 0),
+            activeSkillGaps: data.stats.totalGaps || 0,
+          }));
+        }
+      })
+      .catch(() => {});
+  }, [locations.length, isCoordinator]);
+
+  // ── Admin: Toggle coordinator ──────────────────────────────────────────────
+  const handleToggleCoordinator = async (targetUser) => {
+    const newRole = targetUser.role === 'coordinator' ? 'volunteer' : 'coordinator';
+    try {
+      await updateUserRole(targetUser._id, newRole);
+      setUsersList((prev) => prev.map((u) => (u._id === targetUser._id ? { ...u, role: newRole } : u)));
+      showToast(
+        newRole === 'coordinator'
+          ? `Promoted ${targetUser.fullName} to Coordinator!`
+          : `Removed Coordinator role from ${targetUser.fullName}.`
+      );
+    } catch (e) {
+      showToast(`Error updating role: ${e?.response?.data?.message || e.message}`, 'error');
     }
   };
-  const currentRoleConfig = roleConfigs[user.role] || roleConfigs.volunteer;
-  const RoleIcon = currentRoleConfig.icon;
+
+  // ── Volunteer: skill management ───────────────────────────────────────────
+  const handleAddSkill = () => {
+    if (!newSkillInput.skill.trim()) return;
+    setVolunteerProfile((prev) => ({
+      ...prev,
+      skills: [...prev.skills, { skill: newSkillInput.skill.trim(), proficiency: Number(newSkillInput.proficiency) }],
+    }));
+    setNewSkillInput({ skill: '', proficiency: 3 });
+  };
+
+  const handleRemoveSkill = (index) => {
+    setVolunteerProfile((prev) => ({ ...prev, skills: prev.skills.filter((_, i) => i !== index) }));
+  };
+
+  const handleSaveVolunteerProfile = async () => {
+    setSavingSkills(true);
+    try {
+      await updateMyProfile(volunteerProfile);
+      showToast('Skills and profile saved to backend!');
+    } catch {
+      try {
+        await createVolunteerProfile(volunteerProfile);
+        showToast('Volunteer profile created!');
+      } catch (err2) {
+        showToast(`Save failed: ${err2?.response?.data?.message || err2.message}`, 'error');
+      }
+    } finally {
+      setSavingSkills(false);
+    }
+  };
+
+  // ── Optimization: Update View ─────────────────────────────────────────────
+  const handleUpdateView = async () => {
+    setIsUpdating(true);
+    setShowRecommendations(false);
+    try {
+      const locIds = locations.map((l) => l.id).filter((id) => id && String(id).length === 24);
+      if (locIds.length === 0) {
+        showToast('No valid locations to analyze. Please add locations first.');
+        return;
+      }
+
+      const res = await previewMatching(locIds);
+      const data = res?.data;
+
+      if (data?.proposedAssignments) {
+        // Update location coverage & alerts from real engine output
+        setLocations((prev) =>
+          prev.map((loc) => {
+            const assigned = data.proposedAssignments.filter((a) => a.locationId === loc.id).length;
+            const required = loc.requirements.reduce((s, r) => s + (r.requiredCount || 1), 0) || 1;
+            const pct = Math.min(100, Math.round((assigned / required) * 100));
+            const gaps = data.detectedSkillGaps?.filter((g) => g.locationId === loc.id) || [];
+            const hasAlert = gaps.length > 0;
+            const alertMsg = gaps.map((g) => `Critical shortage: ${g.requiredSkill}. Short ${g.shortage} volunteer(s).`).join(' ');
+            return { ...loc, coverage: pct, hasAlert, alertMessage: alertMsg };
+          })
+        );
+
+        // Update candidate statuses from real assignments
+        setCandidates((prev) =>
+          prev.map((c) => {
+            const a = data.proposedAssignments.find((x) => x.volunteerId === c.id);
+            if (a) return { ...c, status: 'assigned', assignedTo: a.locationId, matchScore: Math.round((a.matchScore || 0.8) * 100) };
+            return { ...c, status: 'available', assignedTo: null };
+          })
+        );
+
+        setOptimizationResult(data);
+      }
+
+      if (data?.stats) {
+        setMetrics((prev) => ({
+          ...prev,
+          staffingCoverage: Math.round(data.stats.globalCoverageRate || prev.staffingCoverage),
+          activeSkillGaps: data.stats.totalGaps ?? prev.activeSkillGaps,
+          totalVolunteers: Math.max(prev.totalVolunteers, data.stats.totalAssigned || 0),
+        }));
+      }
+
+      setShowRecommendations(true);
+      showToast(`Optimization engine ran across ${locIds.length} site(s). Skill-gap analysis updated.`);
+    } catch (e) {
+      showToast(`Optimization error: ${e?.response?.data?.message || e.message}`, 'error');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // ── Manual assign candidate ────────────────────────────────────────────────
+  const handleAssignCandidate = (candidateId, locationId) => {
+    setCandidates((prev) =>
+      prev.map((c) => (c.id === candidateId ? { ...c, status: 'assigned', assignedTo: locationId } : c))
+    );
+    setLocations((prev) =>
+      prev.map((loc) => {
+        if (loc.id !== locationId) return loc;
+        const newCov = Math.min(100, loc.coverage + Math.round(100 / Math.max(1, loc.requirements.reduce((s, r) => s + (r.requiredCount || 1), 0))));
+        return { ...loc, coverage: newCov, hasAlert: newCov < 100 };
+      })
+    );
+    setMetrics((prev) => ({
+      ...prev,
+      staffingCoverage: Math.min(100, prev.staffingCoverage + 2),
+      activeSkillGaps: Math.max(0, prev.activeSkillGaps - 1),
+    }));
+    showToast('Volunteer assigned! Skill gap reduced.');
+  };
+
+  // ── Auto-resolve all skill gaps via backend deployment plan ───────────────
+  const handleAutoFillSkillGap = async () => {
+    try {
+      const locIds = locations.map((l) => l.id).filter((id) => id && String(id).length === 24);
+      if (locIds.length === 0) { showToast('No locations to generate plan for.'); return; }
+
+      const res = await generateDeploymentPlan({
+        locationIds: locIds,
+        title: `Auto-Resolve Plan ${new Date().toLocaleDateString()}`,
+        targetDate: new Date().toISOString(),
+      });
+      const run = res?.data;
+      if (run) {
+        setDeploymentRuns((prev) => [run, ...prev]);
+        showToast('Deployment plan generated and saved to MongoDB!');
+      }
+
+      // Set all locations to fully staffed after confirmed plan
+      setLocations((prev) => prev.map((loc) => ({ ...loc, coverage: 100, hasAlert: false, alertMessage: '' })));
+      setMetrics((prev) => ({ ...prev, activeSkillGaps: 0, staffingCoverage: 100 }));
+    } catch (e) {
+      showToast(`Plan generation error: ${e?.response?.data?.message || e.message}`, 'error');
+    }
+  };
+
+  // ── Create location ────────────────────────────────────────────────────────
+  const handleCreateLocation = async (e) => {
+    e.preventDefault();
+    if (!newLocationForm.name) return;
+    try {
+      const created = await createLocation({
+        name: newLocationForm.name,
+        address: newLocationForm.address || newLocationForm.city || 'Community Center',
+        city: newLocationForm.city || 'Unknown City',
+        date: new Date().toISOString(),
+        shiftStart: '09:00',
+        shiftEnd: '17:00',
+        requirements: [{
+          task: 'Emergency Support',
+          requiredSkill: newLocationForm.requiredSkills,
+          requiredCount: newLocationForm.requiredVolunteers,
+          isSafetyCritical: newLocationForm.tier === 'Tier 3',
+          minProficiency: 3,
+        }],
+      });
+      const newLoc = mapDbLocation(created?.data || { _id: Date.now().toString(), ...newLocationForm }, 0, true, `Need ${newLocationForm.requiredVolunteers} ${newLocationForm.requiredSkills} volunteer(s).`);
+      setLocations((prev) => [newLoc, ...prev]);
+      setIsLocationModalOpen(false);
+      setNewLocationForm({ name: '', address: '', city: '', requiredSkills: 'Medical Advanced', requiredVolunteers: 4, tier: 'Tier 2' });
+      showToast(`Location "${newLoc.name}" added!`);
+    } catch (err) {
+      showToast(`Failed to create location: ${err?.response?.data?.message || err.message}`, 'error');
+    }
+  };
+
+  const handleExport = async (format) => {
+    if (!selectedReportRunId) { showToast('Please select a saved deployment run first.', 'error'); return; }
+    setExportingFormat(format);
+    try {
+      const blob = format === 'excel' ? await exportExcel(selectedReportRunId) : await exportPDF(selectedReportRunId);
+      const fileUrl = window.URL.createObjectURL(blob instanceof Blob ? blob : new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = fileUrl;
+      link.download = `deployment-report-${selectedReportRunId}.${format === 'excel' ? 'xlsx' : 'pdf'}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(fileUrl);
+      showToast(`${format.toUpperCase()} report downloaded successfully.`);
+    } catch (err) {
+      showToast(`Report export failed: ${err?.response?.data?.message || err.message}`, 'error');
+    } finally { setExportingFormat(''); }
+  };
+
+  if (!user) return null;
+
+
+  const dashboardProps = {
+    candidateFilter, candidates, deploymentRuns, handleAddSkill, handleAssignCandidate,
+    handleRemoveSkill, handleSaveVolunteerProfile, handleToggleCoordinator, isCoordinator,
+    loadingCandidates, loadingLocations, loadingUsers, locations, newSkillInput, savingSkills,
+    setActiveTab, setCandidateFilter, setIsLocationModalOpen, setNewSkillInput, showToast,
+    usersList, volunteerProfile, isAdmin, isVolunteer
+  };
+  const sidebarProps = { activeTab, setActiveTab, isAdmin, isCoordinator, isVolunteer, user, logout, navigate };
+  const headerProps = { activeTab, user, isAdmin, isCoordinator, selectedDate, selectedRegion, setSelectedRegion, selectedShift, setSelectedShift, handleUpdateView, isUpdating };
+
   return (
-    <div className="w-full max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 animate-fadeIn">
-      {/* Top Navbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-3xl bg-white border border-slate-200/80 shadow-md mb-8">
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0284c7] to-[#00b4d8] flex items-center justify-center shadow-md">
-            <Heart size={20} className="text-white fill-white/30" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-[#0c2340] flex items-center gap-1.5">
-              Volunteer <span className="text-[#00a884]">Skill Gap</span>
-            </h1>
-            <span className="text-xs text-slate-500 font-medium">Community Portal</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            to="/"
-            className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all duration-200"
-          >
-            <Home size={15} />
-            <span>Home</span>
-          </Link>
-          <button
-            onClick={() => { logout(); navigate('/'); }}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 text-slate-700 text-xs font-bold transition-all duration-200 active:scale-95 group"
-          >
-            <LogOut size={15} className="transition-transform group-hover:-translate-x-0.5" />
-            <span>Sign Out</span>
-          </button>
-        </div>
-      </div>
-      {/* Main Profile & Role Card */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* User Card */}
-        <div className="lg:col-span-1 p-6 sm:p-8 rounded-3xl bg-white border border-slate-200/80 shadow-md flex flex-col items-center text-center">
-          {/* Avatar */}
-          <div className={`w-24 h-24 rounded-full ${currentRoleConfig.avatarBg} text-white flex items-center justify-center text-3xl font-extrabold shadow-md mb-4`}>
-            {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
-          </div>
-          <h2 className="text-xl font-bold text-[#0c2340] mb-1">{user.fullName}</h2>
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-4 break-all">
-            <Mail size={13} className="shrink-0" />
-            <span>{user.email}</span>
-          </div>
-          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${currentRoleConfig.badgeColor} mb-4`}>
-            <RoleIcon size={14} />
-            <span>Role: {user.role}</span>
-          </div>
-          <p className="text-xs text-slate-500 leading-relaxed mb-6">{currentRoleConfig.description}</p>
-          <div className="w-full pt-4 border-t border-slate-100 text-left text-xs text-slate-600 space-y-2">
-            <div className="flex justify-between">
-              <span className="text-slate-400">Status:</span>
-              <span className="text-emerald-600 font-bold flex items-center gap-1"><CheckCircle2 size={13} /> Active & Verified</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-400">Security Mode:</span>
-              <span className="text-[#0284c7] font-semibold">Web Crypto SHA-256</span>
-            </div>
-          </div>
-        </div>
-        {/* Workspace & Stats Card */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Welcome Banner */}
-          <div className="p-7 rounded-3xl bg-gradient-to-r from-[#0c4389] via-[#0d61a8] to-[#01a396] text-white shadow-lg relative overflow-hidden">
-            <div className="flex items-center gap-2 text-teal-200 text-xs font-bold uppercase tracking-wider mb-2">
-              <Sparkles size={14} />
-              <span>Skill Match Dashboard</span>
-            </div>
-            <h3 className="text-2xl font-bold mb-2">Welcome back, {user.fullName.split(' ')[0]}!</h3>
-            <p className="text-sm text-sky-100 leading-relaxed max-w-xl">You are signed in as a <span className="font-bold underline capitalize">{user.role}</span>. You can now match your skills with non-profits and contribute to community causes.</p>
-          </div>
-          {/* Quick Stats Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
-              <div className="text-xs text-slate-500 font-semibold mb-1 flex items-center gap-1.5">
-                <GraduationCap size={16} className="text-[#0284c7]" />
-                <span>Skill Matches</span>
-              </div>
-              <div className="text-2xl font-extrabold text-[#0c2340]">14</div>
-              <div className="text-[11px] text-[#00a884] font-semibold mt-1">3 new opportunities</div>
-            </div>
-            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
-              <div className="text-xs text-slate-500 font-semibold mb-1 flex items-center gap-1.5">
-                <Clock size={16} className="text-teal-600" />
-                <span>Impact Hours</span>
-              </div>
-              <div className="text-2xl font-extrabold text-[#0c2340]">36.5 hrs</div>
-              <div className="text-[11px] text-sky-600 font-semibold mt-1">This quarter</div>
-            </div>
-            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
-              <div className="text-xs text-slate-500 font-semibold mb-1 flex items-center gap-1.5">
-                <Calendar size={16} className="text-purple-600" />
-                <span>Upcoming Projects</span>
-              </div>
-              <div className="text-2xl font-extrabold text-[#0c2340]">2</div>
-              <div className="text-[11px] text-purple-600 font-semibold mt-1">Scheduled for this weekend</div>
-            </div>
-          </div>
-          {/* Schema Verification */}
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 text-xs shadow-sm">
-            <h4 className="font-bold text-[#0c2340] mb-2 flex items-center gap-2">
-              <Shield size={14} className="text-[#0284c7]" />
-              <span>Conformant User Schema Data</span>
-            </h4>
-            <div className="bg-slate-50 p-3 rounded-xl font-mono text-[11px] text-slate-700 overflow-x-auto border border-slate-200">
-              {JSON.stringify(
-                {
-                  email: user.email,
-                  fullName: user.fullName,
-                  role: user.role,
-                  sessionToken: user.token ? `${user.token.substring(0, 16)}...` : undefined
-                },
-                null,
-                2
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <DashboardLayout sidebarProps={sidebarProps} headerProps={headerProps} toast={toast}>
+      <MetricsCards metrics={metrics} />
+      <OptimizationResults showRecommendations={showRecommendations} optimizationResult={optimizationResult} locations={locations} candidates={candidates} handleAutoFillSkillGap={handleAutoFillSkillGap} />
+      {activeTab === 'planner' && <PlannerTab {...dashboardProps} />}
+      {activeTab === 'admin' && <AdminTab {...dashboardProps} />}
+      {activeTab === 'my_portal' && <VolunteerProfileTab {...dashboardProps} />}
+      {activeTab === 'locations' && <LocationsTab {...dashboardProps} />}
+      {activeTab === 'volunteers' && <VolunteersTab {...dashboardProps} />}
+      {activeTab === 'reports' && <ReportsTab deploymentRuns={deploymentRuns} selectedRunId={selectedReportRunId} onRunChange={setSelectedReportRunId} onExport={handleExport} exportingFormat={exportingFormat} loadingRuns={loadingReportRuns} />}
+      <CreateLocationModal isOpen={isLocationModalOpen} onClose={() => setIsLocationModalOpen(false)} newLocationForm={newLocationForm} setNewLocationForm={setNewLocationForm} handleCreateLocation={handleCreateLocation} />
+    </DashboardLayout>
   );
 }

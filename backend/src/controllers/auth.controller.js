@@ -316,3 +316,66 @@ export const logoutUser = async (req, res) => {
     message: "Logged out successfully",
   });
 };
+
+// GET /api/auth/users (Admin only: list all registered users)
+export const getAllUsers = async (req, res) => {
+  try {
+    const Auth = (await import("../models/Auth.js")).default;
+    const users = await Auth.find({}, "fullName email role createdAt").sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      message: "Users retrieved successfully",
+      data: users,
+    });
+  } catch (error) {
+    console.error("Get all users error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve users",
+    });
+  }
+};
+
+// PUT /api/auth/users/:id/role (Admin only: update user role e.g. make or remove coordinator)
+export const updateUserRole = async (req, res) => {
+  try {
+    const { role } = req.body;
+    const validRoles = ["admin", "coordinator", "volunteer"];
+
+    if (!role || !validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: `Role must be one of: ${validRoles.join(", ")}`,
+      });
+    }
+
+    const Auth = (await import("../models/Auth.js")).default;
+    const updatedUser = await Auth.findByIdAndUpdate(
+      req.params.id,
+      { role },
+      { new: true, runValidators: true }
+    ).select("-password");
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    log.info(`User ${updatedUser.email} role updated to ${role} by Admin ${req.user.email}`);
+
+    return res.status(200).json({
+      success: true,
+      message: `User role successfully updated to ${role}`,
+      data: updatedUser,
+    });
+  } catch (error) {
+    console.error("Update user role error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to update user role",
+    });
+  }
+};

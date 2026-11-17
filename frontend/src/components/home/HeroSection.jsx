@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Sparkles, Heart, Users } from 'lucide-react';
+import { ArrowRight, Sparkles, Heart, Users, LayoutDashboard } from 'lucide-react';
+import { AuthContext } from '../../context/AuthContext';
 
 export default function HeroSection() {
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
 
   return (
     <section id="hero" className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-[#f0f7ff] via-[#e8f4fd] to-[#f4fbfa]">
@@ -65,10 +67,17 @@ export default function HeroSection() {
                 <ArrowRight size={18} />
               </button>
               <button
-                onClick={() => navigate('/auth')}
-                className="w-full sm:w-auto px-8 py-4 rounded-2xl border-2 border-[#0284c7] text-[#0284c7] hover:bg-[#0284c7] hover:text-white font-bold text-sm transition-all duration-200 active:scale-[0.97]"
+                onClick={() => navigate(user ? '/dashboard' : '/auth')}
+                className="w-full sm:w-auto px-8 py-4 rounded-2xl border-2 border-[#0284c7] text-[#0284c7] hover:bg-[#0284c7] hover:text-white font-bold text-sm transition-all duration-200 active:scale-[0.97] flex items-center justify-center gap-2"
               >
-                Become a Volunteer
+                {user ? (
+                  <>
+                    <LayoutDashboard size={18} />
+                    <span>Open Dashboard</span>
+                  </>
+                ) : (
+                  <span>Become a Volunteer</span>
+                )}
               </button>
             </div>
           </motion.div>
