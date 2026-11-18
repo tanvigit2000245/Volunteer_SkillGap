@@ -15,6 +15,7 @@ export default function RegisterForm({ onSwitchToLogin, onRegisterSuccess, onNot
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
+    role: 'volunteer', // Default role is volunteer
     password: '',
     confirmPassword: ''
   });
@@ -51,6 +52,7 @@ export default function RegisterForm({ onSwitchToLogin, onRegisterSuccess, onNot
     const nextErrors = {
       fullName: validateFullName(formData.fullName),
       email: validateEmail(formData.email),
+      role: formData.role ? '' : 'Role is required.',
       password: validatePassword(formData.password),
       confirmPassword: validateConfirmPassword(formData.password, formData.confirmPassword)
     };
@@ -80,6 +82,7 @@ export default function RegisterForm({ onSwitchToLogin, onRegisterSuccess, onNot
         fullName: formData.fullName.trim(),
         email: formData.email.trim().toLowerCase(),
         password: formData.password,
+        role: formData.role,
       });
 
       const newUser = response.user || response.data || { fullName: formData.fullName, email: formData.email };

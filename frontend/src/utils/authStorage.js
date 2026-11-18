@@ -1,5 +1,3 @@
-// Utility to hash passwords using standard Web Crypto API (SHA-256)
-// This ensures NO plain-text passwords are ever stored in localStorage or sessionStorage
 export async function hashPassword(plainPassword) {
   const msgUint8 = new TextEncoder().encode(plainPassword);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);

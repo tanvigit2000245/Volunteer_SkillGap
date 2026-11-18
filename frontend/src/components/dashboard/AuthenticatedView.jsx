@@ -76,9 +76,9 @@ function mapDbVolunteer(vol, idx) {
   const score = Math.min(99, Math.max(60, 70 + (vol.skills?.length || 0) * 5 + exp));
   const scoreColor =
     score >= 95 ? 'bg-[#10b981] text-white' :
-    score >= 88 ? 'bg-[#06b6d4] text-white' :
-    score >= 80 ? 'bg-[#3b82f6] text-white' :
-    'bg-[#f59e0b] text-white';
+      score >= 88 ? 'bg-[#06b6d4] text-white' :
+        score >= 80 ? 'bg-[#3b82f6] text-white' :
+          'bg-[#f59e0b] text-white';
   return {
     id: vol._id,
     name: volName,
@@ -186,10 +186,21 @@ export default function AuthenticatedView() {
           setLoadingCandidates(true);
           const volRes = await getAllVolunteers();
           const dbVols = volRes?.data || [];
-          if (isMounted && dbVols.length > 0) {
+          // if (isMounted && dbVols.length > 0) {
+          //   const mapped = dbVols.map((v, i) => mapDbVolunteer(v, i));
+          //   setCandidates(mapped);
+          //   setMetrics((prev) => ({ ...prev, totalVolunteers: dbVols.length, pendingReviews: dbVols.length }));
+          // }
+          if (isMounted) {
             const mapped = dbVols.map((v, i) => mapDbVolunteer(v, i));
+
             setCandidates(mapped);
-            setMetrics((prev) => ({ ...prev, totalVolunteers: dbVols.length, pendingReviews: dbVols.length }));
+
+            setMetrics((prev) => ({
+              ...prev,
+              totalVolunteers: dbVols.length,
+              pendingReviews: dbVols.length
+            }));
           }
         } catch (err) {
           console.error('Failed to load volunteers:', err);
@@ -243,8 +254,8 @@ export default function AuthenticatedView() {
     };
 
     load();
-  
-  return () => { isMounted = false; };
+
+    return () => { isMounted = false; };
   }, [isAdmin, isCoordinator, isVolunteer]);
 
   // ── Auto-run optimization once locations are loaded ───────────────────────
@@ -287,7 +298,7 @@ export default function AuthenticatedView() {
           }));
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [locations.length, isCoordinator]);
 
   // ── Admin: Toggle coordinator ──────────────────────────────────────────────
