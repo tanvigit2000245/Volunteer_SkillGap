@@ -1,10 +1,7 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   User,
-  Phone,
-  MapPin,
-  Briefcase,
   Award,
   Clock,
   Save,
@@ -32,6 +29,18 @@ const initialForm = {
   availability: [],
 };
 
+// Normalize possible API response formats.
+const extractProfile = (response) => {
+  return (
+    response?.profile ||
+    response?.volunteer ||
+    response?.data?.profile ||
+    response?.data?.volunteer ||
+    response?.data ||
+    response
+  );
+};
+
 const VolunteerProfileTab = () => {
   const [profile, setProfile] = useState(null);
   const [formData, setFormData] = useState(initialForm);
@@ -52,35 +61,14 @@ const VolunteerProfileTab = () => {
   const inputClass =
     "w-full mt-2 px-4 py-3 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500";
 
-  // Normalize possible API response formats.
-  const extractProfile = (response) => {
-    return (
-      response?.profile ||
-      response?.volunteer ||
-      response?.data?.profile ||
-      response?.data?.volunteer ||
-      response?.data ||
-      response
-    );
-  };
-
   // Load the logged-in volunteer's profile.
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
-      setLoading(true);
-      setError("");
-
       const response = await getMyProfile();
 
       console.log("Volunteer profile API response:", response);
 
-      const data =
-        response?.profile ||
-        response?.volunteer ||
-        response?.data?.profile ||
-        response?.data?.volunteer ||
-        response?.data ||
-        response;
+      const data = extractProfile(response);
 
       setProfile(data);
       setFormData({
@@ -108,15 +96,56 @@ const VolunteerProfileTab = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadProfile = async () => {
-        await fetchProfile();
+      try {
+        const response = await getMyProfile();
+
+        if (!isMounted) return;
+
+        console.log("Volunteer profile API response:", response);
+
+        const data = extractProfile(response);
+
+        setProfile(data);
+        setFormData({
+          ...initialForm,
+          ...data,
+          skills: data.skills || [],
+          languages: data.languages || [],
+          availability: data.availability || [],
+        });
+        setIsEditing(false);
+      } catch (error) {
+        if (!isMounted) return;
+
+        console.error("Profile fetching error:", error);
+
+        if (error.response?.status === 404) {
+          setProfile(null);
+          setFormData(initialForm);
+          setIsEditing(true);
+        } else {
+          setError(
+            error.response?.data?.message ||
+            "Unable to fetch volunteer profile."
+          );
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
     };
 
     loadProfile();
-}, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Update simple form fields.
   const handleChange = (e) => {
@@ -240,6 +269,7 @@ const VolunteerProfileTab = () => {
     e.preventDefault();
 
     try {
+      setSaving(true);
       setLoading(true);
       setError("");
 

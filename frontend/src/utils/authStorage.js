@@ -290,7 +290,7 @@ export function getActiveSession() {
     if (fromSession) return JSON.parse(fromSession);
 
     return null;
-  } catch (e) {
+  } catch {
     return null;
   }
 }
