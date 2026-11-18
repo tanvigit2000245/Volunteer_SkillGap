@@ -111,8 +111,12 @@ const VolunteerProfileTab = () => {
   };
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
+    const loadProfile = async () => {
+        await fetchProfile();
+    };
+
+    loadProfile();
+}, []);
 
   // Update simple form fields.
   const handleChange = (e) => {
@@ -230,29 +234,6 @@ const VolunteerProfileTab = () => {
       ),
     }));
   };
-
-  // Convert dates to ISO format expected by backend.
-  const preparePayload = () => ({
-    phone: formData.phone,
-    mobilityLevel: formData.mobilityLevel,
-    experienceYears: Number(formData.experienceYears),
-
-    skills: formData.skills.map((skill) => ({
-      skillName: skill.skillName,
-      proficiency: Number(skill.proficiency),
-    })),
-
-    languages: formData.languages.map((language) => ({
-      language: language.language,
-      proficiency: language.proficiency,
-    })),
-
-    availability: formData.availability.map((item) => ({
-      date: new Date(`${item.date}T00:00:00.000Z`).toISOString(),
-      startTime: item.startTime,
-      endTime: item.endTime,
-    })),
-  });
 
   // Create or update profile.
   const handleSubmit = async (e) => {
