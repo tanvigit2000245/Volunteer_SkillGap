@@ -6,13 +6,22 @@ import {
   getRun,
   override,
   confirm,
+  getLocationCandidates,
+  assignVolunteer,
+  assignBestCandidates,
+  rejectVolunteerAssignment,
 } from "../controllers/planner.controller.js";
 import { protect, restrictTo } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-// All planner endpoints require authentication and Coordinator or Admin role
+// All planner endpoints require authentication
 router.use(protect);
+
+// Get skill-matched candidates for a specific location (accessible to all authenticated users)
+router.get("/candidates/:locationId", getLocationCandidates);
+
+// Coordinator & Admin only actions
 router.use(restrictTo("admin", "coordinator"));
 
 // Preview matching without saving
@@ -30,5 +39,14 @@ router.post("/override", override);
 
 // Confirm deployment plan
 router.post("/confirm/:runId", confirm);
+
+// Direct volunteer assignment from Candidate Matching Pool
+router.post("/assign", assignVolunteer);
+
+// Auto-assign top candidate(s) with best matching percentage
+router.post("/assign-best", assignBestCandidates);
+
+// Reject / cancel volunteer assignment
+router.post("/reject", rejectVolunteerAssignment);
 
 export default router;

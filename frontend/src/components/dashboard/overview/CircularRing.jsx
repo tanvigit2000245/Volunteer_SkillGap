@@ -1,7 +1,8 @@
 import React from 'react';
 
-function CircularRing({ coverage }) {
-  const pct = Math.min(100, Math.max(0, Number(coverage) || 0));
+function CircularRing({ coverage, assignedCount, totalRequired }) {
+  const hasAssigned = Number(assignedCount) > 0;
+  const pct = hasAssigned ? Math.min(100, Math.max(0, Number(coverage) || 0)) : 0;
   const isFullyStaffed = pct >= 100;
 
   return (
@@ -20,21 +21,23 @@ function CircularRing({ coverage }) {
         />
 
         {/* Progress Circle */}
-        <path
-          className={
-            isFullyStaffed ? 'text-[#10b981]' : 'text-[#4338ca]'
-          }
-          strokeDasharray={`${pct}, 100`}
-          strokeWidth="3.5"
-          strokeLinecap="round"
-          stroke="currentColor"
-          fill="none"
-          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-        />
+        {hasAssigned && (
+          <path
+            className={
+              isFullyStaffed ? 'text-[#10b981]' : 'text-[#4338ca]'
+            }
+            strokeDasharray={`${pct}, 100`}
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            stroke="currentColor"
+            fill="none"
+            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+          />
+        )}
       </svg>
 
-      <span className="absolute text-xs font-bold text-slate-700">
-        {pct}%
+      <span className={`absolute font-bold ${hasAssigned ? 'text-xs text-slate-700' : 'text-[11px] text-slate-400 font-mono'}`}>
+        {hasAssigned ? `${pct}%` : `0/${totalRequired || 1}`}
       </span>
     </div>
   );

@@ -12,6 +12,9 @@ import {
   Plus,
   X,
   Trash2,
+  MapPin,
+  Compass,
+  Calendar,
 } from "lucide-react";
 
 import {
@@ -22,6 +25,7 @@ import {
 
 const initialForm = {
   phone: "",
+  homeAddress: "",
   mobilityLevel: "High",
   experienceYears: 0,
   skills: [],
@@ -74,6 +78,7 @@ const VolunteerProfileTab = () => {
       setFormData({
         ...initialForm,
         ...data,
+        homeAddress: data.homeAddress || "",
         skills: data.skills || [],
         languages: data.languages || [],
         availability: data.availability || [],
@@ -115,6 +120,7 @@ const VolunteerProfileTab = () => {
         setFormData({
           ...initialForm,
           ...data,
+          homeAddress: data.homeAddress || "",
           skills: data.skills || [],
           languages: data.languages || [],
           availability: data.availability || [],
@@ -275,6 +281,7 @@ const VolunteerProfileTab = () => {
 
       const payload = {
         phone: formData.phone,
+        homeAddress: formData.homeAddress,
         mobilityLevel: formData.mobilityLevel,
         experienceYears: Number(formData.experienceYears),
         skills: formData.skills,
@@ -417,6 +424,21 @@ const VolunteerProfileTab = () => {
                   value={formData.phone}
                   onChange={handleChange}
                   placeholder="+91-9876543210"
+                  className={inputClass}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">
+                  City / Location *
+                </label>
+                <input
+                  type="text"
+                  name="homeAddress"
+                  value={formData.homeAddress}
+                  onChange={handleChange}
+                  placeholder="e.g. Phagwara, Punjab"
                   className={inputClass}
                   required
                 />
@@ -699,19 +721,48 @@ const VolunteerProfileTab = () => {
             </div>
 
             <div>
-              <h3 className="text-xl font-bold text-gray-900">
-                Volunteer Profile
-              </h3>
+              <div className="flex items-center gap-3">
+                <h3 className="text-xl font-bold text-gray-900">
+                  Volunteer Profile
+                </h3>
+                <span
+                  className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${
+                    profile.deploymentStatus === "CONFIRMED"
+                      ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                      : profile.deploymentStatus === "PROPOSED"
+                      ? "bg-amber-100 text-amber-800 border border-amber-300"
+                      : profile.deploymentStatus === "REJECTED"
+                      ? "bg-rose-100 text-rose-800 border border-rose-300"
+                      : "bg-blue-100 text-blue-800 border border-blue-300"
+                  }`}
+                >
+                  {profile.deploymentStatus === "CONFIRMED"
+                    ? "● Deployed (Confirmed)"
+                    : profile.deploymentStatus === "PROPOSED"
+                    ? "● Mission Proposed"
+                    : profile.deploymentStatus === "REJECTED"
+                    ? "● Not Selected / Rejected"
+                    : "● Available for Deployment"}
+                </span>
+              </div>
               <p className="text-gray-500 text-sm">
                 {profile.phone}
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5">
             <div>
               <p className="text-sm text-gray-500">Phone</p>
               <p className="font-medium">{profile.phone || "Not provided"}</p>
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-500">Location / City</p>
+              <p className="font-medium text-slate-800 flex items-center gap-1">
+                <MapPin size={15} className="text-indigo-600" />
+                {profile.homeAddress || "Not provided"}
+              </p>
             </div>
 
             <div>
@@ -798,6 +849,143 @@ const VolunteerProfileTab = () => {
                 </p>
               )}
             </div>
+          </div>
+
+          {/* Active Deployments & Missions */}
+          <div className="border-t pt-5">
+            <h4 className="font-semibold mb-3 flex items-center gap-2">
+              <Compass size={18} className="text-indigo-600" />
+              My Deployments & Mission Assignments
+            </h4>
+
+            {profile.assignments?.length ? (
+              <div className="space-y-3">
+                {profile.assignments.map((assignment, index) => (
+                  <div
+                    key={index}
+                    className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                      assignment.status === "CONFIRMED"
+                        ? "border-emerald-200 bg-emerald-50/40"
+                        : assignment.status === "COMPLETED"
+                        ? "border-blue-200 bg-blue-50/30"
+                        : assignment.status === "REJECTED"
+                        ? "border-rose-200 bg-rose-50/40"
+                        : "border-indigo-100 bg-indigo-50/40"
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900">
+                          {assignment.location?.name || "Service Location"}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            assignment.status === "CONFIRMED"
+                              ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                              : assignment.status === "COMPLETED"
+                              ? "bg-blue-100 text-blue-800 border border-blue-200"
+                              : assignment.status === "REJECTED"
+                              ? "bg-rose-100 text-rose-800 border border-rose-200"
+                              : "bg-amber-100 text-amber-800 border border-amber-200"
+                          }`}
+                        >
+                          {assignment.status === "CONFIRMED"
+                            ? "Assigned / Confirmed"
+                            : assignment.status === "COMPLETED"
+                            ? "Mission Completed (Released)"
+                            : assignment.status === "REJECTED"
+                            ? "Not Selected / Rejected"
+                            : assignment.status}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Task: <strong className="text-slate-700">{assignment.task}</strong>
+                        {assignment.location?.city && ` • ${assignment.location.city}`}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Shift: {assignment.location?.shiftStart || "09:00"} – {assignment.location?.shiftEnd || "17:00"}
+                      </p>
+                      {assignment.reason && (
+                        <p className="text-xs text-rose-600 mt-1 font-medium">
+                          Note: {assignment.reason}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className={`px-3 py-1 rounded-full font-bold text-xs ${
+                        assignment.status === "REJECTED"
+                          ? "bg-rose-100 text-rose-700"
+                          : assignment.status === "CONFIRMED"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : assignment.status === "COMPLETED"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-indigo-100 text-indigo-700"
+                      }`}>
+                        {assignment.matchScore || 90}% Match Score
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-500">
+                No active mission assignments at this time. When you are assigned to a response site by a coordinator, details will appear here.
+              </div>
+            )}
+          </div>
+
+          {/* Service Locations Matching My Skills */}
+          <div className="border-t pt-5">
+            <h4 className="font-semibold mb-3 flex items-center gap-2">
+              <MapPin size={18} className="text-emerald-600" />
+              Service Locations Matching My Skills
+            </h4>
+
+            {profile.matchedLocations?.length ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {profile.matchedLocations.map((loc, index) => (
+                  <div
+                    key={index}
+                    className="p-4 rounded-xl border border-slate-200 bg-white shadow-sm flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-900 text-sm">
+                          {loc.name}
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
+                          Matching
+                        </span>
+                      </div>
+                      {loc.city && (
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {loc.city}
+                        </p>
+                      )}
+                      <p className="text-xs text-slate-400 mt-1">
+                        Shift: {loc.shiftStart} – {loc.shiftEnd}
+                      </p>
+
+                      <div className="flex flex-wrap gap-1 mt-2.5">
+                        {(loc.matchingSkills || []).map((sk, sIdx) => (
+                          <span
+                            key={sIdx}
+                            className="px-2 py-0.5 rounded bg-emerald-100/70 text-emerald-800 text-[10px] font-bold"
+                          >
+                            ✓ {sk}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-500">
+                No open service locations currently match your registered skill list. As new response sites are created, matching opportunities will appear here.
+              </div>
+            )}
           </div>
 
         </div>

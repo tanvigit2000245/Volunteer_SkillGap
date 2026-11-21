@@ -88,18 +88,23 @@ const OptimizationResults = ({
             <span>Top Assignments ({assignments.length})</span>
           </div>
 
-          {assignments.slice(0, 3).map((assignment, index) => {
+          {assignments.slice(0, 5).map((assignment, index) => {
             const candidate = candidates.find(
               (c) => c.id === assignment.volunteerId
             );
+            const volName = candidate?.name || assignment.volunteerDetails?.fullName || assignment.volunteerId?.slice(-6);
+            const score = assignment.matchScore || 0;
+            const displayScore = score > 1 ? score : Math.round(score * 100);
 
             return (
-              <div key={index} className="text-[11px] text-indigo-200 mt-1">
-                <strong className="text-white">
-                  {candidate?.name || assignment.volunteerId?.slice(-6)}
-                </strong>
-                {' '}→ {assignment.task} (
-                {Math.round((assignment.matchScore || 0) * 100)}%)
+              <div key={index} className="text-[11px] text-indigo-200 mt-1.5">
+                <strong className="text-white">{volName}</strong>
+                {' '}→ {assignment.task} ({displayScore}%)
+                {assignment.volunteerDetails?.fullName && assignment.task && (
+                  <div className="text-[10px] text-indigo-300/70 ml-2 mt-0.5">
+                    Assigned because their skills match the {assignment.task} requirement.
+                  </div>
+                )}
               </div>
             );
           })}

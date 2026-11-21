@@ -2,11 +2,11 @@
 import React, { useMemo, useState } from "react";
 import { Loader2, UserCheck, Search } from "lucide-react";
 
-export default function VolunteersTab({ candidates = [], loadingCandidates = false }) {
+export default function VolunteersTab({ allVolunteers = [], loadingCandidates = false }) {
   const [search, setSearch] = useState("");
 
   const filteredCandidates = useMemo(() => {
-    return candidates.filter((candidate) => {
+    return allVolunteers.filter((candidate) => {
       const query = search.toLowerCase();
 
       return (
@@ -18,7 +18,7 @@ export default function VolunteersTab({ candidates = [], loadingCandidates = fal
         )
       );
     });
-  }, [candidates, search]);
+  }, [allVolunteers, search]);
 
   return (
     <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 space-y-5">

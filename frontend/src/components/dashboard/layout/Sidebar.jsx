@@ -54,7 +54,7 @@ const Sidebar = ({
         </button>
 
         {/* Locations */}
-        {isCoordinator && (
+        {(isCoordinator || isVolunteer) && (
           <button
             onClick={() => setActiveTab('locations')}
             className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${

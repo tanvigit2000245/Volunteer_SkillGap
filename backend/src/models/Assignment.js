@@ -5,7 +5,8 @@ const assignmentSchema = new Schema(
     run: {
       type: Schema.Types.ObjectId,
       ref: "DeploymentRun",
-      required: [true, "Deployment run reference is required"],
+      required: false,
+      default: null,
       index: true,
     },
     volunteer: {
@@ -31,7 +32,7 @@ const assignmentSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["PROPOSED", "CONFIRMED", "REJECTED"],
+      enum: ["PROPOSED", "CONFIRMED", "REJECTED", "COMPLETED"],
       default: "PROPOSED",
       index: true,
     },
@@ -82,7 +83,10 @@ const assignmentSchema = new Schema(
 );
 
 // Prevent assigning the same volunteer twice within the same deployment run
-assignmentSchema.index({ run: 1, volunteer: 1 }, { unique: true });
+assignmentSchema.index(
+  { run: 1, volunteer: 1 },
+  { unique: true, partialFilterExpression: { run: { $type: "objectId" } } }
+);
 
 const Assignment =
   mongoose.models.Assignment ||

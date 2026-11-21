@@ -77,16 +77,62 @@ const CreateLocationModal = ({
           {/* City */}
           <div>
             <label className="text-slate-600 block mb-1">
-              City
+              City / Deployment Region *
             </label>
 
             <input
               type="text"
-              placeholder="City name"
+              required
+              placeholder="e.g. Mumbai, Delhi, Metro Area"
               value={newLocationForm.city}
               onChange={(e) => handleChange('city', e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 font-medium"
             />
+          </div>
+
+          {/* Date and Shift Timing */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="text-slate-600 block mb-1">
+                Deployment Date *
+              </label>
+
+              <input
+                type="date"
+                required
+                value={newLocationForm.date || ''}
+                onChange={(e) => handleChange('date', e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 font-medium"
+              />
+            </div>
+
+            <div>
+              <label className="text-slate-600 block mb-1">
+                Shift Start *
+              </label>
+
+              <input
+                type="time"
+                required
+                value={newLocationForm.shiftStart || '09:00'}
+                onChange={(e) => handleChange('shiftStart', e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 font-medium"
+              />
+            </div>
+
+            <div>
+              <label className="text-slate-600 block mb-1">
+                Shift End *
+              </label>
+
+              <input
+                type="time"
+                required
+                value={newLocationForm.shiftEnd || '17:00'}
+                onChange={(e) => handleChange('shiftEnd', e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 font-medium"
+              />
+            </div>
           </div>
 
           {/* Required Skill */}
