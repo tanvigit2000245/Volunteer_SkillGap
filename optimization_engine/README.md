@@ -16,7 +16,9 @@ This microservice provides mathematically optimal, globally-scoped assignment so
   where $M = 1000$ prioritizes filling maximum headcount quotas before optimizing soft suitability preferences.
 
 ### Running the Service
+
 ```bash
+pip install -r requirements.txt
 python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 ```

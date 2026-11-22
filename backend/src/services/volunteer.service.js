@@ -18,10 +18,83 @@ export const createVolunteerProfile = async (userId, data) => {
 };
 
 /**
- * Get volunteer profile for the logged in user
+ * Get volunteer profile for the logged in user, enriched with deployment status,
+ * active assignments, and matched service locations.
  */
 export const getVolunteerProfile = async (userId) => {
-  return Volunteer.findOne({ user: userId }).populate(populateOptions);
+  const volunteer = await Volunteer.findOne({ user: userId }).populate(populateOptions);
+  if (!volunteer) return null;
+
+  const { default: Assignment } = await import("../models/Assignment.js");
+  const { default: Location } = await import("../models/Location.js");
+  const { default: DeploymentRun } = await import("../models/DeploymentRun.js");
+  const { skillsMatch } = await import("./matching.service.js");
+  const { releaseExpiredAssignments } = await import("./location.service.js");
+
+  // Release any assignments whose shift end time has passed
+  await releaseExpiredAssignments();
+
+  // Fetch active and past assignments across deployment sites
+  const assignments = await Assignment.find({
+    volunteer: volunteer._id,
+    status: { $in: ["PROPOSED", "CONFIRMED", "REJECTED", "COMPLETED"] },
+  })
+    .populate("location", "name address city date shiftStart shiftEnd status")
+    .populate("run", "title targetDate status")
+    .sort({ createdAt: -1 });
+
+  const hasConfirmed = assignments.some((a) => a.status === "CONFIRMED");
+  const hasProposed = assignments.some((a) => a.status === "PROPOSED");
+  const hasRejected = !hasConfirmed && !hasProposed && assignments.some((a) => a.status === "REJECTED");
+  const deploymentStatus = hasConfirmed
+    ? "CONFIRMED"
+    : hasProposed
+    ? "PROPOSED"
+    : hasRejected
+    ? "REJECTED"
+    : "AVAILABLE";
+
+  // Find upcoming service locations matching volunteer's skills
+  const volSkills = volunteer.skills || [];
+  const allLocations = await Location.find({ status: { $in: ["UPCOMING", "ACTIVE"] } });
+
+  const matchedLocations = allLocations
+    .filter((loc) =>
+      (loc.requirements || []).some((req) =>
+        volSkills.some((s) => skillsMatch(s.skillName || s.skill || "", req.requiredSkill))
+      )
+    )
+    .map((loc) => {
+      const matchingReqs = (loc.requirements || []).filter((req) =>
+        volSkills.some((s) => skillsMatch(s.skillName || s.skill || "", req.requiredSkill))
+      );
+      return {
+        id: loc._id,
+        name: loc.name,
+        city: loc.city || loc.address || "",
+        date: loc.date,
+        shiftStart: loc.shiftStart,
+        shiftEnd: loc.shiftEnd,
+        status: loc.status,
+        matchingSkills: matchingReqs.map((r) => r.requiredSkill),
+      };
+    });
+
+  const volObj = volunteer.toObject();
+  // Map assignments to plain objects with a consistent `reason` field
+  const assignmentsMapped = assignments.map((a) => {
+    const obj = a.toObject ? a.toObject() : a;
+    return {
+      ...obj,
+      reason: obj.overrideReason || null,
+    };
+  });
+  return {
+    ...volObj,
+    assignments: assignmentsMapped,
+    deploymentStatus,
+    matchedLocations,
+  };
 };
 
 /**

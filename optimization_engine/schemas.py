@@ -23,6 +23,8 @@ class VolunteerData(BaseModel):
     languages: List[VolunteerLanguage] = []
     mobilityLevel: str = "Medium"
     experienceYears: int = 0
+    homeAddress: Optional[str] = ""
+    city: Optional[str] = ""
     availability: List[AvailabilitySlot] = []
     rating: Optional[float] = 5.0
 
@@ -59,6 +61,7 @@ class ProposedAssignment(BaseModel):
     matchScore: float
     scoreBreakdown: Dict[str, Any] = {}
     volunteerDetails: Optional[Dict[str, Any]] = None
+    assignmentExplanation: Optional[str] = None
 
 class GapMetrics(BaseModel):
     totalVolunteers: int = 0
