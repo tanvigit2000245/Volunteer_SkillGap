@@ -19,7 +19,7 @@ const LocationRequirements = ({
         </h2>
 
         <div className="px-3 py-1 rounded-full bg-white text-[11px] font-bold text-slate-500 shadow-sm border border-slate-200">
-          {locations.length} SITES
+          {locations.reduce((sum, l) => sum + (l.totalRequired || 1), 0)} REQUIRED
         </div>
       </div>
 
@@ -48,7 +48,9 @@ const LocationRequirements = ({
           )}
         </div>
       ) : (
-        locations.map((loc) => (
+        [...locations]
+          .sort((a, b) => (a.status === 'COMPLETED' ? 1 : 0) - (b.status === 'COMPLETED' ? 1 : 0))
+          .map((loc) => (
           <div
             key={loc.id}
             onClick={() => loadCandidatesForLocation && loadCandidatesForLocation(loc.id)}
