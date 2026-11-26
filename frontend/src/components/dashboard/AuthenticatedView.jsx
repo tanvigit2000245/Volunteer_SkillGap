@@ -778,9 +778,22 @@ export default function AuthenticatedView() {
   const sidebarProps = { activeTab, setActiveTab, isAdmin, isCoordinator, isVolunteer, user, logout, navigate };
   const headerProps = { activeTab, user, isAdmin, isCoordinator, selectedDate, selectedRegion, setSelectedRegion, selectedShift, setSelectedShift, handleUpdateView, isUpdating };
 
+  const selectedLocation = selectedLocationId
+    ? locations.find((l) => l.id === selectedLocationId)
+    : null;
+
+  const activeMetrics = selectedLocation
+    ? {
+        totalVolunteers: candidates.filter((c) => c.type === 'eligible' || c.isAlreadyAssigned).length,
+        staffingCoverage: selectedLocation.coverage ?? 0,
+        activeSkillGaps: Math.max(0, (selectedLocation.totalRequired || 0) - (selectedLocation.assignedCount || 0)),
+        pendingReviews: candidates.filter((c) => c.type === 'suitable').length,
+      }
+    : metrics;
+
   return (
     <DashboardLayout sidebarProps={sidebarProps} headerProps={headerProps} toast={toast}>
-      <MetricsCards metrics={metrics} />
+      <MetricsCards metrics={activeMetrics} />
       <OptimizationResults showRecommendations={showRecommendations} optimizationResult={optimizationResult} locations={locations} candidates={candidates} handleAutoFillSkillGap={handleAutoFillSkillGap} selectedLocationId={selectedLocationId} handleUpdateView={handleUpdateView} isUpdating={isUpdating} />
       {activeTab === 'planner' && <PlannerTab {...dashboardProps} />}
       {activeTab === 'admin' && <AdminTab {...dashboardProps} />}
