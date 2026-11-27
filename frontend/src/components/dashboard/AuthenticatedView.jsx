@@ -368,10 +368,12 @@ export default function AuthenticatedView() {
     }
   };
 
-  // ── Auto-select first location and load its candidates ─────────────────────
+  // ── Auto-select first upcoming location and load its candidates ────────────
   useEffect(() => {
     if (locations.length > 0 && !selectedLocationId) {
-      const firstRealLoc = locations.find((l) => l.id && String(l.id).length === 24);
+      const firstRealLoc =
+        locations.find((l) => l.id && String(l.id).length === 24 && l.status !== 'COMPLETED') ||
+        locations.find((l) => l.id && String(l.id).length === 24);
       if (firstRealLoc) {
         loadCandidatesForLocation(firstRealLoc.id);
       }
@@ -592,7 +594,39 @@ export default function AuthenticatedView() {
       showToast(`Volunteer ${candidate.name} successfully assigned and saved to MongoDB!`);
 
       // 3. Refresh candidates from backend so updated DB state is reflected
-      loadCandidatesForLocation(locationId);
+      await loadCandidatesForLocation(locationId);
+
+      // 4. Re-run optimization engine so skill gaps & stats reflect the new assignment
+      try {
+        const allLocIds = locations.map((l) => l.id).filter((id) => id && String(id).length === 24);
+        if (allLocIds.length > 0) {
+          const optRes = await previewMatching(allLocIds);
+          const optData = optRes?.data;
+          if (optData) {
+            setOptimizationResult(optData);
+            setShowRecommendations(true);
+            // Also sync location coverage from real engine output
+            if (optData.proposedAssignments) {
+              setLocations((prev) =>
+                prev.map((loc) => {
+                  const assigned = optData.proposedAssignments.filter((a) => a.locationId === loc.id).length;
+                  const required = loc.requirements.reduce((s, r) => s + (r.requiredCount || 1), 0) || 1;
+                  const pct = Math.min(100, Math.round((assigned / required) * 100));
+                  const gaps = (optData.detectedSkillGaps || []).filter((g) => g.locationId === loc.id);
+                  return { ...loc, coverage: pct, hasAlert: gaps.length > 0 };
+                })
+              );
+            }
+            if (optData.stats) {
+              setMetrics((prev) => ({
+                ...prev,
+                staffingCoverage: Math.round(optData.stats.globalCoverageRate || prev.staffingCoverage),
+                activeSkillGaps: optData.stats.totalGaps ?? prev.activeSkillGaps,
+              }));
+            }
+          }
+        }
+      } catch (_) { /* Non-fatal: optimization refresh failed silently */ }
     } catch (err) {
       console.error('Assignment error:', err);
       showToast(err?.response?.data?.message || 'Failed to assign candidate.', 'error');
@@ -614,6 +648,26 @@ export default function AuthenticatedView() {
       if (locRes?.data) {
         setLocations(locRes.data.map((l) => mapDbLocation(l)));
       }
+
+      // Re-run optimization engine so skill gaps & stats stay fresh
+      try {
+        const allLocIds = locations.map((l) => l.id).filter((id) => id && String(id).length === 24);
+        if (allLocIds.length > 0) {
+          const optRes = await previewMatching(allLocIds);
+          const optData = optRes?.data;
+          if (optData) {
+            setOptimizationResult(optData);
+            setShowRecommendations(true);
+            if (optData.stats) {
+              setMetrics((prev) => ({
+                ...prev,
+                staffingCoverage: Math.round(optData.stats.globalCoverageRate || prev.staffingCoverage),
+                activeSkillGaps: optData.stats.totalGaps ?? prev.activeSkillGaps,
+              }));
+            }
+          }
+        }
+      } catch (_) { /* Non-fatal */ }
     } catch (err) {
       console.error('Assign best matches error:', err);
       showToast(err?.response?.data?.message || 'Failed to auto-assign best candidates.', 'error');
@@ -724,10 +778,23 @@ export default function AuthenticatedView() {
   const sidebarProps = { activeTab, setActiveTab, isAdmin, isCoordinator, isVolunteer, user, logout, navigate };
   const headerProps = { activeTab, user, isAdmin, isCoordinator, selectedDate, selectedRegion, setSelectedRegion, selectedShift, setSelectedShift, handleUpdateView, isUpdating };
 
+  const selectedLocation = selectedLocationId
+    ? locations.find((l) => l.id === selectedLocationId)
+    : null;
+
+  const activeMetrics = selectedLocation
+    ? {
+        totalVolunteers: candidates.filter((c) => c.type === 'eligible' || c.isAlreadyAssigned).length,
+        staffingCoverage: selectedLocation.coverage ?? 0,
+        activeSkillGaps: Math.max(0, (selectedLocation.totalRequired || 0) - (selectedLocation.assignedCount || 0)),
+        pendingReviews: candidates.filter((c) => c.type === 'suitable').length,
+      }
+    : metrics;
+
   return (
     <DashboardLayout sidebarProps={sidebarProps} headerProps={headerProps} toast={toast}>
-      <MetricsCards metrics={metrics} />
-      <OptimizationResults showRecommendations={showRecommendations} optimizationResult={optimizationResult} locations={locations} candidates={candidates} handleAutoFillSkillGap={handleAutoFillSkillGap} />
+      <MetricsCards metrics={activeMetrics} />
+      <OptimizationResults showRecommendations={showRecommendations} optimizationResult={optimizationResult} locations={locations} candidates={candidates} handleAutoFillSkillGap={handleAutoFillSkillGap} selectedLocationId={selectedLocationId} handleUpdateView={handleUpdateView} isUpdating={isUpdating} />
       {activeTab === 'planner' && <PlannerTab {...dashboardProps} />}
       {activeTab === 'admin' && <AdminTab {...dashboardProps} />}
       {activeTab === 'my_portal' && <VolunteerProfileTab {...dashboardProps} />}
